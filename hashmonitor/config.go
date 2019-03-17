@@ -11,6 +11,7 @@ import (
 
 var pathSep = string(os.PathSeparator)
 var root string
+var cfg = DefaultConfig()
 
 func init() {
 	cwd, err := os.Getwd()
@@ -23,7 +24,7 @@ func init() {
 
 func Config() (*viper.Viper, error) {
 
-	cfg := DefaultConfig()
+	// cfg := DefaultConfig()
 	f := cfg.ConfigFileUsed()
 	err := cfg.MergeInConfig()
 	if err != nil {
@@ -87,8 +88,10 @@ func DefaultConfig() *viper.Viper {
 	cfg.SetDefault("Grafana.RefreshRate", 5)
 
 	cfg.SetDefault("Slack.Url", "https://hooks.slack.com/services/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")
+	cfg.SetDefault("Slack.Username", "unsetUserName")
 	cfg.SetDefault("Slack.PeriodicReporting.Enabled", false)
 	cfg.SetDefault("Slack.PeriodicReporting.Minutes", 10)
+	cfg.SetDefault("Slack.MessageWindow", time.Duration(time.Second*30))
 	cfg.SetDefault("Slack.Verbosity", 2)
 
 	cfg.SetDefault("Profit.Display", false)

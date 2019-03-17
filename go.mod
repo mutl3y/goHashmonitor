@@ -9,6 +9,7 @@ require (
 	github.com/inosvaruag/go-powershell v0.0.0-20180508181027-1d4727eb7a12
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kr/pty v1.1.3 // indirect
+	github.com/lytics/slackhook v0.0.0-20160630154540-a52fd449b27d
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/afero v1.2.0 // indirect
