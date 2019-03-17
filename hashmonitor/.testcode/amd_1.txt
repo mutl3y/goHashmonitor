@@ -1,0 +1,1 @@
+"gpu_threads_conf":[{"index":0,"Intensity":1992,"worksize":8,"affine_to_cpu":false,"strided_index":3,"mem_chunk":2,"unroll":8,"comp_mode":true,"interleave":1},{"index":0,"Intensity":1992,"worksize":8,"affine_to_cpu":false,"strided_index":3,"mem_chunk":2,"unroll":8,"comp_mode":true,"interleave":1}],"auto_tune":0,"platform_index":2,

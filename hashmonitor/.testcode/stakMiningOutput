@@ -1,0 +1,46 @@
+xmr-stak 2.7.1 7d6cd31b1
+
+Brought to you by fireice_uk and psychocrypt under GPLv3.
+Based on CPU mining code by wolf9466 (heavily optimized by fireice_uk).
+Based on NVIDIA mining code by KlausT and psychocrypt.
+Based on OpenCL mining code by wolf9466.
+
+Configurable dev donation level is set to 2.0%
+
+-------------------------------------------------------------------
+You can use following keys to display reports:
+'h' - hashrate
+'r' - results
+'c' - connection
+-------------------------------------------------------------------
+Upcoming xmr-stak-gui is sponsored by:
+   #####   ______               ____
+ ##     ## | ___ \             /  _ \
+#    _    #| |_/ /_   _   ___  | / \/ _   _  _ _  _ _  ___  _ __    ___  _   _
+#   |_|   #|    /| | | | / _ \ | |   | | | || '_|| '_|/ _ \| '_ \  / __|| | | |
+#         #| |\ \| |_| || (_) || \_/\| |_| || |  | | |  __/| | | || (__ | |_| |
+ ##     ## \_| \_|\__, | \___/ \____/ \__,_||_|  |_|  \___||_| |_| \___| \__, |
+   #####           __/ |                                                  __/ |
+                  |___/   https://ryo-currency.com                       |___/
+
+This currency is a way for us to implement the ideas that we were unable to in
+Monero. See https://github.com/fireice-uk/cryptonote-speedup-demo for details.
+-------------------------------------------------------------------
+[2019-02-27 21:00:06] : Mining coin: cryptonight_heavy
+[2019-02-27 21:00:06] : Compiling code and initializing GPUs. This will take a while...
+[2019-02-27 21:00:07] : Device 0 work size 8 / 32.
+[2019-02-27 21:00:07] : OpenCL device 0 - Load precompiled code from file d:\Users\Mark\AppData\Local/.openclcache/4412997df6c14125f6d57266ae03d540d7051f4013f879abd17948950570111a.openclbin
+[2019-02-27 21:00:07] : Device 0 work size 8 / 32.
+[2019-02-27 21:00:07] : OpenCL device 0 - Load precompiled code from file d:\Users\Mark\AppData\Local/.openclcache/4412997df6c14125f6d57266ae03d540d7051f4013f879abd17948950570111a.openclbin
+[2019-02-27 21:00:07] : Starting AMD GPU (OpenCL) thread 0, no affinity.
+[2019-02-27 21:00:07] : Starting AMD GPU (OpenCL) thread 1, no affinity.
+[2019-02-27 21:00:07] : WARNING: backend CPU disabled.
+[2019-02-27 21:00:07] : Fast-connecting to loki.ingest.cryptoknight.cc:7732 pool ...
+[2019-02-27 21:00:07] : Pool loki.ingest.cryptoknight.cc:7732 connected. Logging in...
+[2019-02-27 21:00:07] : Difficulty changed. Now: 150000.
+[2019-02-27 21:00:07] : Pool logged in.
+[2019-02-27 21:00:15] : OpenCL Interleave 0|0: 297/3197.40 ms - 20.1
+[2019-02-27 21:00:21] : OpenCL Interleave 0|0: 143/3694.98 ms - 20.1
+[2019-02-27 21:00:29] : OpenCL Interleave 0|0: 740/4670.82 ms - 20.2
+[2019-02-27 21:00:40] : OpenCL Interleave 0|0: 942/5859.23 ms - 20.2
+[2019-02-27 21:00:53] : OpenCL Interleave 0|0: 1298/7132.74 ms - 20.2

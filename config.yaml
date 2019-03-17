@@ -1,0 +1,84 @@
+core:
+  connection:
+    check:
+      destination: www.google.co.uk
+      seconds: 10
+  debug: false
+  display:
+    destination: Local
+    port: 8080
+  log:
+    dir: D:\Users\Mark\GolandProjects\src\goHashmonitor\logs
+    file: hashmonitor.log
+    rotate: true
+    rotate_hours: 24
+  reboot:
+    enabled: false
+    timeout_seconds: 15
+  stak:
+    args:
+      - --noNVIDIA
+    dir: D:\Users\Mark\GolandProjects\src\goHashmonitor\xmr-stak
+    exe: ./xmr-stak.exe
+    ip: 192.168.0.28
+    port: 420
+    refresh_ms: 500ms
+    seconds_before_rate_check: 20
+    stable_secs: 60
+    start_attempts: 3
+    timeout: 2
+    tools:
+      - OverdriveNTool.exe -consoleonly -r1 -p1XMR
+      - OverdriveNTool.exe -consoleonly -r2 -p2XMR
+device:
+  count: 1
+  hash_drop: 300
+  maxresetsecs: 3
+  reset:
+    enabled: false
+    interval: 3
+    onstartup: false
+grafana:
+  enabled: false
+  ip: 192.168.0.29
+  port: 8089
+  refreshrate: 5
+profit:
+  calc:
+    fast: 1.8
+    heavy: 1.1
+    lite: 2.5
+    v2: 0.95
+  coinstats: false
+  display: false
+  refresh_time: 20
+  statshour: 1
+  switching:
+    checkmins: 20
+    enabled: false
+    killrunning: false
+    live: false
+    percentage: 5
+slack:
+  periodicreporting:
+    enabled: false
+    minutes: 10
+  url: https://hooks.slack.com/services/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
+  verbosity: 2
+temperature:
+  active: false
+  column: InnerTemp
+  csv: ./sensor-data
+  enabled: false
+  maxc: 34
+  mindiff: 0.2
+  stop_mining: false
+  valid_minutes: 10
+tuning:
+  benchmark:
+    enable: false
+    runsecs: false
+  intensity:
+    analyser: false
+    precision: 3
+    stable_minutes: 3
