@@ -87,7 +87,7 @@ func DefaultConfig() *viper.Viper {
 	cfg.SetDefault("Grafana.Port", 8089)
 	cfg.SetDefault("Grafana.RefreshRate", 5)
 
-	cfg.SetDefault("Slack.Url", "https://hooks.slack.com/services/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")
+	cfg.SetDefault("Slack.Url", "https://hooks.slack.com/services/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")
 	cfg.SetDefault("Slack.Username", "unsetUserName")
 	cfg.SetDefault("Slack.PeriodicReporting.Enabled", false)
 	cfg.SetDefault("Slack.PeriodicReporting.Minutes", 10)

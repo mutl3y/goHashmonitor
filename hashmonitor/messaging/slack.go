@@ -1,16 +1,14 @@
-package hashmonitor
+package messaging
 
 import (
 	"fmt"
 	"github.com/lytics/slackhook"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"os"
 	"time"
 )
 
-type Client struct {
-	slackhook.Client
-}
 type slackConfig struct {
 	webhook      string
 	user         string
@@ -31,26 +29,26 @@ type slack interface {
 	SendMessage(msg, msgType string) error
 }
 
-func (api *slackConfig) NewMessage(msg string) error {
+func (api *slackConfig) NewMessage(msg string) *slackhook.Message {
 	m := new(slackhook.Message)
 	m.Text = msg
 	m.UserName = api.user
-	m.IconEmoji = ":sos:"
-	// m.Attachments = append([]sl.Attachment, new(sl.Attachment))
-	m.Channel = "hashmonitor_dev"
-	return nil
+	m.IconEmoji = ":white_check_mark:"
+	return m
 }
 
 // type webHookMessage slackhook.Message
 // type Client *slackhook.Client
 
-func NewClient() *slackhook.Client {
-	c := slackhook.New(cfg.GetString("Slack.Url"))
+func NewClient(webhook string) *slackhook.Client {
+	c := slackhook.New(webhook)
 	return c
 }
 
-func (s *slackConfig) SendMessage(msg, slType string) error {
-	m := new(slackhook.Message)
+func (s *slackConfig) SendMessage(msg, slType string, ts int) error {
+	m := s.NewMessage(msg)
+
+	m.Text = msg
 	var col string
 	switch slType {
 	case "error":
@@ -70,13 +68,17 @@ func (s *slackConfig) SendMessage(msg, slType string) error {
 		m.IconEmoji = ":white_check_mark:"
 		col = "#41f41d"
 	}
-	fmt.Println(m)
-	// var text = "var slackUsername"
+
+	var authur string
+	authur, err := os.Hostname()
+	if err != nil {
+		authur = "Hashmonitor"
+	}
 
 	var a = slackhook.Attachment{
 		Fallback:   msg,
 		Color:      col,
-		AuthorName: "",
+		AuthorName: authur,
 		AuthorLink: "",
 		AuthorIcon: "",
 		Title:      fmt.Sprintf("%v", slType),
@@ -87,11 +89,10 @@ func (s *slackConfig) SendMessage(msg, slType string) error {
 		ThumbURL:   "",
 		FooterIcon: "",
 		Footer:     "",
-		Timestamp:  0,
+		Timestamp:  ts,
 	}
 
 	m.AddAttachment(&a)
-	fmt.Println(m)
-	err := s.Client.Send(m)
+	err = s.Client.Send(m)
 	return errors.Wrap(err, "failed sending slack message")
 }

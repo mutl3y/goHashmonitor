@@ -25,7 +25,7 @@ var profitMineCmd = &cobra.Command{
 	Use:   "profitMine",
 	Short: "Start a profit mining session",
 	Long: `
-This will start a mining session with profit mining features enabled if set
+This will start a mining session with profit mining features enabled if configured
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("profitMine called")

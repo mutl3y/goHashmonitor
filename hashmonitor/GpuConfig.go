@@ -117,12 +117,9 @@ func (mc *AmdConf) amdIntTemplate(interleave int, dir string) (str string, err e
 	if err != nil {
 		return "", fmt.Errorf("amdIntTemplate_open %v", err)
 	}
-
+	defer f.Close()
 	if _, err = f.WriteString(stakStyle); err != nil {
 		return "", fmt.Errorf("amdIntTemplate_write %v", err)
-	}
-	if err = f.Close(); err != nil {
-		return "", fmt.Errorf("amdIntTemplate_close %v", err)
 	}
 
 	return

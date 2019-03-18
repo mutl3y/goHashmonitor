@@ -17,3 +17,8 @@
 /hashmonitor/config.yaml
 /hashmonitor/heavy.txt
 /hashmonitor/xmr-stak/
+hashmonitor/testPlans/
+vendor/github.com/
+vendor/golang.org/
+vendor/gopkg.in/
+/hashmonitor/messaging/logs/
