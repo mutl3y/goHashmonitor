@@ -16,13 +16,14 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 var lower, upper int
 
-// tuneInterleaveCmd represents the tuneInterleave command
+// InterleaveCmd represents the tuneInterleave command
 var InterleaveCmd = &cobra.Command{
 	Use:   "tuneInterleave",
 	Short: "Tune interleave",

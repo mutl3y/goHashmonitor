@@ -2,7 +2,6 @@ package hashmonitor
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 
 var pathSep = string(os.PathSeparator)
 var root string
-var cfg = DefaultConfig()
+var cfg, _ = Config()
 
 func init() {
 	cwd, err := os.Getwd()
@@ -19,26 +18,29 @@ func init() {
 		log.Fatal(err)
 	}
 	root = cwd + pathSep
-
+	// cfg, err = Config()
+	// if err != nil {
+	// 	fmt.Printf("failed setting globaL config %v",err)
+	// }
 }
 
 func Config() (*viper.Viper, error) {
 
-	// cfg := DefaultConfig()
-	f := cfg.ConfigFileUsed()
-	err := cfg.MergeInConfig()
+	c := DefaultConfig()
+	f := c.ConfigFileUsed()
+	err := c.MergeInConfig()
 	if err != nil {
-		if _, err = os.Stat(cfg.ConfigFileUsed()); os.IsNotExist(err) {
-			fmt.Printf("Config File Not Found\n")
-			if err := cfg.WriteConfig(); err != nil {
+		if _, err = os.Stat(c.ConfigFileUsed()); os.IsNotExist(err) {
+			log.Info("Config File Not Found")
+			if err := c.WriteConfig(); err != nil {
 				log.Fatalf("Error creating, %v", err)
 			}
-			log.Fatalf("Created %v check contents", f)
+			log.Fatalf("Created %v, check contents", f)
 		}
 		return nil, fmt.Errorf("Error reading File %v\n", f)
 	}
-
-	return cfg, err
+	err = c.WriteConfigAs(c.ConfigFileUsed())
+	return c, err
 }
 
 func DefaultConfig() *viper.Viper {
@@ -53,10 +55,10 @@ func DefaultConfig() *viper.Viper {
 	cfg.SetDefault("Core.Debug", false)
 	cfg.SetDefault("Core.Display.Destination", "Local")
 	cfg.SetDefault("Core.Display.Port", 8080)
-	cfg.SetDefault("Core.Log.Dir", root+"logs")
-	cfg.SetDefault("Core.Log.File", "hashmonitor.log")
-	cfg.SetDefault("Core.Log.Rotate", true)
-	cfg.SetDefault("Core.Log.Rotate_Hours", 24)
+	cfg.SetDefault("Core.Log.Configfile", "logging.conf")
+	// cfg.SetDefault("Core.Log.File", "hashmonitor.log")
+	// cfg.SetDefault("Core.Log.Rotate", true)
+	// cfg.SetDefault("Core.Log.Rotate_Hours", 24)
 	cfg.SetDefault("Core.Reboot.Enabled", false)
 	cfg.SetDefault("Core.Reboot.Timeout_Seconds", 15)
 

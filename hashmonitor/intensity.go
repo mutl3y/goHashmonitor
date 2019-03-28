@@ -3,10 +3,10 @@ package hashmonitor
 import (
 	"bytes"
 	"fmt"
-	"github.com/spf13/viper"
-	"log"
 	"os"
 	"time"
+
+	"github.com/spf13/viper"
 
 	"github.com/BurntSushi/toml"
 )

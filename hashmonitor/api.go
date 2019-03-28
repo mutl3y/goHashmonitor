@@ -3,12 +3,12 @@ package hashmonitor
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/viper"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 type stakStats struct {
@@ -42,7 +42,7 @@ type stakStats struct {
 	}
 	LastUpdate time.Time
 }
-type Signal chan struct{}
+type signal chan struct{}
 
 type ApiService interface {
 	Monitor() bool
@@ -122,7 +122,6 @@ func (api *apiService) Monitor() bool {
 	return true
 }
 
-// func (api *apiService) Monitor() error   { return nil }
 func (api *apiService) StopMonitor() bool {
 	close(api.Signal)
 	close(api.limit.Signal)

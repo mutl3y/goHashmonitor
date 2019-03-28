@@ -1,13 +1,13 @@
 package messaging
 
 import (
-	"github.com/spf13/viper"
 	"testing"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 func TestSendSlackMessage(t *testing.T) {
-	//config, _ := Config()
 	cfg := viper.New()
 	cfg.SetDefault("Slack.Url", "https://hooks.slack.com/services/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")
 	cfg.SetDefault("Slack.Username", "unsetUserName")

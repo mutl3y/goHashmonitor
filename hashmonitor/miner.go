@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -57,7 +56,7 @@ type miner struct {
 		nicehash          bool
 	}
 	tools []string
-	// 	Signal     chan struct{}
+	// 	signal     chan struct{}
 	Up         bool
 	Stop       context.CancelFunc
 	Process    *os.Process
@@ -188,7 +187,11 @@ func conParse(b []byte) error {
 }
 func parseStakUnixTime(s string) (int64, error) {
 	date, err := time.Parse("2006-01-02 15:04:05", s)
+	if err != nil {
+		return 0, err
+	}
 	return date.Unix(), err
+
 }
 
 func interleaveFilter(s string, d int64) (err error) {

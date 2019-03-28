@@ -15,10 +15,12 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-	"goHashmonitor/hashmonitor"
 	"log"
 	"os"
+
+	"github.com/spf13/cobra"
+
+	"goHashmonitor/hashmonitor"
 )
 
 // configCmd represents the config command
@@ -31,14 +33,15 @@ var configCmd = &cobra.Command{
 		cfg := hashmonitor.DefaultConfig()
 		f := cfg.ConfigFileUsed()
 		if cmd.Flag("force").Changed {
-			if err := cfg.WriteConfig(); err != nil {
+			if err := cfg.WriteConfigAs(cfg.ConfigFileUsed()); err != nil {
 				log.Fatalf("Error writing config File: %v", err)
 			}
 			log.Fatalf("Created %v Check contents", f)
+			return
 		}
 
 		if _, err := os.Stat(f); os.IsNotExist(err) {
-			if err := cfg.WriteConfig(); err != nil {
+			if err = cfg.SafeWriteConfig(); err != nil {
 				log.Fatalf("Error saving %v, %v", f, err)
 			}
 		} else {

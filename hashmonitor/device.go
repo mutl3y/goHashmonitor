@@ -4,16 +4,16 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 var hasAdmin bool
