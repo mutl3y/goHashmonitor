@@ -1,6 +1,7 @@
 package hashmonitor
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gogap/logrus_mate"
@@ -11,16 +12,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Log application logging
-var log = &logrus.Logger{}
+var log = logrus.StandardLogger()
 
-func init() {
-
-}
-
-func ConfigLogger(fn string, force bool) error {
+func ConfigLogger(fn string, force bool) (err error) {
 	c := "hashmonitor"
-	_, err := os.Stat(fn)
+	_, err = os.Stat(fn)
 	if os.IsNotExist(err) || force {
 		err = defaultLoggerConfig(fn)
 		if err != nil {
@@ -28,8 +24,18 @@ func ConfigLogger(fn string, force bool) error {
 		}
 	}
 
-	mate := &logrus_mate.LogrusMate{}
-	if mate, err = logrus_mate.NewLogrusMate(logrus_mate.ConfigFile(fn)); err != nil {
+	// recover from 3rd party code panics
+	defer func() {
+		if r := recover(); r != nil {
+			e := fmt.Sprintf("invalid config file %v", r)
+			err = errors.New(e)
+			fmt.Println("recovered from logrus_mate config issue")
+		}
+	}()
+	cfn := logrus_mate.ConfigFile(fn)
+	mate, err := logrus_mate.NewLogrusMate(cfn)
+	if err != nil {
+		fmt.Println("log config error")
 		return errors.Wrapf(err, "%v", mate)
 	}
 	if err = mate.Hijack(log, c); err != nil {
@@ -51,11 +57,12 @@ func defaultLoggerConfig(fn string) error {
 	return errors.Wrapf(f.Close(), "defaultLoggerConfig failed to close file %v", err)
 }
 
-var conf = `hashmonitor{
-level = "error"
+var conf = `
+hashmonitor{
+	level = "debug"
 	formatter.name = "text"
 	formatter.options{
-		force-colors = false
+		force-colors = true
 		disable-colors = false
 		disable-timestamp = false
 		full-timestamp = false
@@ -66,10 +73,18 @@ level = "error"
 hooks{
 	expander{}
 	file{
+		level = 0
 		filename = "hashmonitor.log"
 		daily = true
 		rotate = true
 		}
+	slack {
+        url      = "https://hooks.slack.com/services/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"
+        levels   = ["debug", "error", "info", "warn"]
+        channel  = ""
+        emoji    = ":rag:"
+        username = "logrus_mate"
+        }
 	}
 }
 `

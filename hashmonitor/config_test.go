@@ -5,9 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
@@ -53,24 +56,36 @@ func cleanup(f chan *os.File, stats bool) {
 		// attempt deletion
 		dir := filepath.Dir(fn.Name())
 		err = os.RemoveAll(dir)
-		if err == nil {
-			return
-		}
-		fmt.Printf("failed removing %v %v\n", fn.Name(), err) // handle errors
 
-		b, err := winCmd("", "powershell rm "+fn.Name())
-		if err != nil {
-			fmt.Printf("error removing %v %v\n", fn.Name(), err)
+		if err == nil {
+			fmt.Printf("returning %v", err)
 			return
 		}
-		fmt.Printf("%s", b)
+
+		var inUse = errors.New("The process cannot access the file because it is being used by another process.")
+		if err != inUse {
+			// 		fmt.Printf("file in use %v \nWill cleanup next run\n", fn.Name()) // handle errors
+
+		} else {
+			fmt.Printf("error during cleanup %v", err)
+		}
+
+		// b, err := winCmd("", "powershell rm "+fn.Name())
+		// if err != nil {
+		// 	fmt.Printf("error removing %v %v\n", fn.Name(), err)
+		// 	return
+		// }
+		// fmt.Printf("%s", b)
 	}
 }
 
 func TestConfig(t *testing.T) {
-
+	dir := ".testcode" + pathSep + "configTests"
+	err := os.MkdirAll(dir, 644)
+	if err != nil {
+		t.Fatal("failed creating test dir")
+	}
 	type pair struct {
-		name   string
 		value  interface{}
 		result interface{}
 	}
@@ -80,25 +95,29 @@ func TestConfig(t *testing.T) {
 		pair
 		wantErr bool
 	}{
-		{"int", pair{"test", 666, 666}, false},
-		// {"decimal", pair{"test", 21.1, 21.1}, false},
-		// {"negative int", pair{"test", -33, -33}, false},
-		// {"string", pair{"test", "special", "special"}, false},
-		// {"bool", pair{"test", true, true}, false},
-		// {"time", pair{"test", time.Second * 3, time.Second * 3}, false},
-		// {"wrong_int", pair{"test", 666, 667}, true},
-		// {"wrong_decimal", pair{"test", 21.1, "21.1"}, true},
-		// {"wrong_negative int", pair{"test", -33, "-33"}, true},
-		// {"wrong_string", pair{"test", "special", 666}, true},
-		// {"wrong_bool", pair{"test", true, false}, true},
-		// {"wrong_time", pair{"test", time.Second * 3, time.Second * 4}, true},
+		{"int", pair{666, 666}, false},
+		{"decimal", pair{21.1, 21.1}, false},
+		{"negative int", pair{-33, -33}, false},
+		{"string", pair{"special", "special"}, false},
+		{"bool", pair{true, true}, false},
+		{"time", pair{time.Minute * 3, time.Minute * 3}, false},
+		{"wrong_int", pair{666, 667}, true},
+		{"wrong_decimal", pair{21.1, "21.1"}, true},
+		{"wrong_negative int", pair{-33, "-33"}, true},
+		{"wrong_string", pair{"special", 666}, true},
+		{"wrong_bool", pair{true, false}, true},
+		{"wrong_time", pair{time.Second * 3, time.Second * 4}, true},
 	}
 
 	files := make(chan *os.File, 100)
+
 	go cleanup(files, false)
+	defer close(files)
+	wg := sync.WaitGroup{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			file, err := ioutil.TempFile(".testcode"+pathSep+"configs", "*.yaml")
+			wg.Add(1)
+			file, err := ioutil.TempFile(dir, "*.yaml")
 			if err != nil {
 				fmt.Printf("error creating temp file %v", err)
 			}
@@ -109,7 +128,7 @@ func TestConfig(t *testing.T) {
 			v.SetConfigFile(n)
 
 			// set the value
-			v.Set(tt.pair.name, tt.pair.value)
+			v.Set(tt.name, tt.pair.value)
 
 			// write to disk
 			err = v.WriteConfigAs(v.ConfigFileUsed())
@@ -127,17 +146,22 @@ func TestConfig(t *testing.T) {
 				t.Errorf("failed reading config %v", err) // handle errors
 			}
 
+			var res interface{}
 			// get the value and compare
-			res := v2.Get(tt.pair.name)
-			if (res != tt.pair.result) != tt.wantErr {
-				t.Errorf("%v want %v %T got %v %T , wantErr %v", tt.name, res, res, tt.pair.value, tt.pair.value, tt.wantErr)
+			if strings.Contains(tt.name, "time") {
+				res = v2.GetDuration(tt.name)
+			} else {
+				res = v2.Get(tt.name)
 
 			}
-
+			if (res != tt.pair.result) != tt.wantErr {
+				t.Logf("%v want %v %T got %v %T , wantErr %v", tt.name, tt.pair.value, tt.pair.value, res, res, tt.wantErr)
+				// 		t.Logf("%v %T", res2, res2)
+			}
 			files <- file
+			wg.Done()
 		})
 	}
+	wg.Wait()
 
-	close(files)
-	time.Sleep(3 * time.Second)
 }

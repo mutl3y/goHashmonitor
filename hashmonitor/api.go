@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
@@ -57,11 +58,12 @@ type simpleRateLimit struct {
 }
 
 type apiService struct {
-	URL    string
-	Signal chan struct{}
-	limit  *simpleRateLimit
-	Stats  *stakStats
-	Up     bool
+	URL       string
+	Signal    chan struct{}
+	limit     *simpleRateLimit
+	Stats     *stakStats
+	Up        bool
+	Connected bool
 }
 
 // Monitor Starts monitoring Stak
@@ -83,24 +85,24 @@ func (api *apiService) Monitor() bool {
 				if err != nil {
 					errChan <- fmt.Errorf("error connecting: %v", err)
 					api.Up = false
-					fmt.Printf("%v", err)
-					continue
+					log.Debugf("%v", err)
+					return
 				}
 				if res.StatusCode != 200 {
 					errChan <- fmt.Errorf("%v", res.Status)
-					continue
+					return
 				}
 				body, err := ioutil.ReadAll(res.Body)
 				if err != nil {
 					errChan <- fmt.Errorf("error reading Body: %v", err)
-					continue
+					return
 				}
 
 				out := stakStats{}.data
 				err = json.Unmarshal(body, &out)
 				if err != nil {
 					errChan <- fmt.Errorf("error unmarshaling JSON: %v", err)
-					continue
+					return
 				}
 				err = res.Body.Close()
 				if err != nil {
@@ -111,10 +113,11 @@ func (api *apiService) Monitor() bool {
 				api.Stats.data = out
 				api.Stats.LastUpdate = time.Now()
 				api.Up = true
+				fmt.Println(api.Connected)
 				api.Stats.Unlock()
 
-			case err := <-errChan:
-				fmt.Printf("%v", err)
+			case outerr := <-errChan:
+				log.Errorf("%v", outerr)
 			}
 		}
 	}(errChan, api)
@@ -126,10 +129,10 @@ func (api *apiService) StopMonitor() bool {
 	close(api.Signal)
 	close(api.limit.Signal)
 	if _, ok := <-api.Signal; !ok {
-		fmt.Printf("Api Signaled, Exiting \n")
+		log.Debugf("Api Signaled, Exiting \n")
 	}
 	if _, ok := <-api.limit.Signal; !ok {
-		fmt.Printf("Limiter Signaled, Exiting \n")
+		log.Debugf("Limiter Signaled, Exiting \n")
 	}
 	return true
 }
@@ -144,16 +147,16 @@ loop:
 
 		select {
 		case <-limit.throttle:
-			if api.Up {
+			if api.Connected {
 				api.Stats.RLock()
 				fmt.Printf("%s %+v\n", "\033[H\033[2J", api.Stats.LastUpdate)
 				api.Stats.RUnlock()
 			}
-
 		case <-limit.Signal:
-			return nil
+			return errors.New("stopped")
 		case <-time.After(15 * time.Second):
-			break loop
+			return errors.New("timed out")
+
 		}
 		x++
 		if x >= 10 {

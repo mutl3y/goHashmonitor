@@ -31,7 +31,7 @@ func Test_apiService_Monitor(t *testing.T) {
 	}
 
 	fmt.Printf("%v\n", as.StopMonitor())
-
+	time.Sleep(time.Second * 2)
 	t.Logf("Number of running go routines %v: %v", "after", runtime.NumGoroutine())
 
 }
@@ -61,14 +61,25 @@ func Test_apiService_StopMonitor(t *testing.T) {
 }
 
 func Test_apiService_ShowMonitor(t *testing.T) {
-	var tests []struct {
+	c, err := Config()
+	if err != nil {
+		t.Fatalf("failed to get config")
+	}
+	ss := NewStatsService(c)
+	ss.Monitor()
+	defer ss.StopMonitor()
+
+	tests := []struct {
 		name    string
-		api     *apiService
+		api     ApiService
 		wantErr bool
+	}{
+		{"should work", ss, false},
+		{"should break", &apiService{}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.api.ShowMonitor(); (err != nil) != tt.wantErr {
+			if err = tt.api.ShowMonitor(); (err != nil) != tt.wantErr {
 				t.Errorf("apiService.ShowMonitor() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

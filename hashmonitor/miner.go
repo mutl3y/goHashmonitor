@@ -76,8 +76,8 @@ func NewMiner() *miner {
 
 // ConfigMiner creates the base config and attaches a context and embeds a cancel func
 func (ms *miner) ConfigMiner(c *viper.Viper) (context.Context, error) {
-	ms.config.dir = c.GetString("Core.Stak.Dir")
-	if ms.config.dir == "" {
+	ms.config.dir = root + c.GetString("Core.Stak.Dir")
+	if ms.config.dir == root {
 		return nil, fmt.Errorf("stak Directory Not Specified")
 	}
 	ms.config.exe = c.GetString("Core.Stak.Exe")
@@ -100,10 +100,14 @@ func (ms *miner) StartMining(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create stdOut pipe, %v", err)
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		fmt.Printf("%+v", cmd)
+
+	if Debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	if err = cmd.Start(); err != nil {
+		log.Debugf("%+v", cmd)
 		return fmt.Errorf("failed to start mining process, %v", err)
 	}
 
@@ -118,11 +122,11 @@ func (ms *miner) ConsoleMetrics() error {
 	for scanner.Scan() {
 		err := conParse(scanner.Bytes())
 		if err != nil && err.Error() != "no match" {
-			fmt.Printf("Error parsing %v\n", err)
+			log.Errorf("Error parsing %v\n", err)
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Printf("Invalid input: %s", err)
+		log.Errorf("Invalid input: %s", err)
 	}
 	return nil
 }
@@ -147,7 +151,7 @@ func conParse(b []byte) error {
 			s = s[:50]
 		}
 		if len(s) <= 12 {
-			log.Fatalf("conParse error length? %v", s)
+			log.Errorf("conParse error length? %v", s)
 		}
 
 		switch s[:12] {
@@ -157,16 +161,16 @@ func conParse(b []byte) error {
 				unixTime = 0
 			}
 			if err := interleaveFilter(s[18:], unixTime); err != nil {
-				fmt.Printf("conParse decoding error %v\n", err)
+				log.Errorf("conParse decoding error %v\n", err)
 			}
 		case "OpenCL devic":
-			// fmt.Printf("device \Date\Date%v\n", s)
+			log.Debugf("OpenCL device %v\n", s)
 		default:
-			fmt.Printf("conParse unparsed openCl %v\n", s)
+			log.Debugf("conParse unparsed openCl %v\n", s)
 
 		}
 	case "Mini":
-		fmt.Printf("algorithm \t%v\n", s[13:])
+		log.Debugf("algorithm \t%v\n", s[13:])
 
 	// discarded and non printed below
 	case "Devi": // fmt.Printf("device \t\t%v\n", s)
@@ -178,9 +182,9 @@ func conParse(b []byte) error {
 	case "Star": // fmt.Printf("startup \t%v\n", s)
 	case "New ": // fmt.Printf("new block %v\n", s)
 	case "Resu":
-		fmt.Printf("result %v\n", s)
+		log.Debugf("result %v\n", s)
 	default:
-		fmt.Printf("Unparsed Message %v\n", s)
+		log.Debugf("Unparsed Message %v\n", s)
 	}
 
 	return nil
@@ -236,17 +240,20 @@ func interleaveFilter(s string, d int64) (err error) {
 		}
 	}
 
-	fmt.Printf("%+v\n", m)
+	// todo
+	// log.Debugf("%+v\n", m)
 	return nil
 
 }
 
 func (ms *miner) StopMining() error {
+	log.Debugf("killing process id: %v", ms.Process.Pid)
 	ms.Stop()
-	fmt.Printf("killing process id: %v", ms.Process.Pid)
-	err := ms.Process.Kill()
-
-	return err
+	if ms.Up {
+		err := ms.Process.Kill()
+		return err
+	}
+	return nil
 }
 
 // ResetCards()

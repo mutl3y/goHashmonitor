@@ -20,9 +20,8 @@ vendor/github.com/
 vendor/golang.org/
 vendor/gopkg.in/
 /hashmonitor/messaging/logs/
-/hashmonitor/mate.conf
 /hashmonitor/hashmonitor.conf
 /hashmonitor/hashmonitor.log
-/hashmonitor/.testcode/configs/*
-hashmonitor/.testcode/configs/
 hashmonitor/logging.conf/
+/hashmonitor/logging.conf
+/hashmonitor/.testcode/config_/

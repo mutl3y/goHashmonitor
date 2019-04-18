@@ -4,34 +4,33 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 func Test_gpuConfParse(t *testing.T) {
-	file := "heavy.txt"
+	file := strings.Join([]string{".testcode", "heavy.txt"}, pathSep)
 	f, err := os.Open(file)
 	if err != nil {
 		t.Fatalf("Can't find File %v, %v", file, err)
 	}
+	defer f.Close()
 
 	tst := NewAmdConfig()
 
 	if err = tst.gpuConfParse(f); err != nil {
 		t.Errorf("cardAlgo.gpuConfParse() error = %v", err)
 	}
-	err = f.Close()
-	if err != nil {
-		t.Errorf("failed to close file")
-	}
 	t.Logf("%v", tst)
 }
 
 func Test_amdConf_amdIntTemplate(t *testing.T) {
-	file := "heavy.txt"
+	file := strings.Join([]string{".testcode", "heavy.txt"}, pathSep)
 	f, err := os.Open(file)
 	if err != nil {
 		t.Fatalf("Can't find File %v, %v", file, err)
 	}
+	defer f.Close()
 
 	tst := NewAmdConfig()
 	if err = tst.gpuConfParse(f); err != nil {

@@ -140,12 +140,12 @@ func (ca *CardData) GetStatus(c *viper.Viper) error {
 	case Os == "windows":
 		by, err := winCmd(c.GetString("Core.Stak.Dir"), "devcon status =display")
 		if err != nil {
-			fmt.Printf("error reseting cards %v", err)
+			log.Errorf("error reseting cards %v", err)
 		}
 
 		err = ca.devConParse(by)
 		if err != nil {
-			fmt.Printf("error parsing devcon output:  %v\n", err)
+			log.Errorf("error parsing devcon output:  %v\n", err)
 		}
 		return errors.Wrap(err, "failed updating device status")
 	default:
@@ -161,14 +161,14 @@ func (ca *CardData) ResetCards(c *viper.Viper, force bool) error {
 	case Os == "windows":
 		for _, v := range *ca {
 			if !v.running || force {
-				fmt.Printf("Resetting %v\n", v.name)
+				log.Infof("Resetting %v\n", v.name)
 				command := fmt.Sprintf("powershell devcon.exe restart \"@%v\"", v.pcidev)
 				by, err := winCmd(c.GetString("Core.Stak.Dir"), command)
 				if err != nil {
-					fmt.Printf("error running %v", err)
+					log.Errorf("error running %v", err)
 				}
 
-				fmt.Printf("%+v \n", by)
+				log.Infof("%+v \n", by)
 				err = ca.devConParse(by)
 				if err != nil {
 					return errors.Wrap(err, fmt.Sprintf("failed resetting device %v", v.name))
@@ -209,7 +209,7 @@ func (ca *CardData) devConParse(r io.Reader) error {
 			card.running = false
 			wholeCard = true
 		default:
-			fmt.Printf("unreconized devcon response %v\n", s)
+			log.Debugf("unreconized devcon response %v\n", s)
 		}
 		if wholeCard {
 			t := *ca

@@ -1,7 +1,6 @@
 package hashmonitor
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -48,14 +47,14 @@ func Test_ConfigMiner(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := tt.ms.ConfigMiner(tt.cfg)
+			_, err := tt.ms.ConfigMiner(tt.cfg)
 			if err != nil {
 				if err.Error() != tt.errorMessage {
 					t.Fatalf("%v\n want: %v\n got: %v ", tt.name, tt.errorMessage, err)
 				}
 			}
 
-			t.Logf("want: %v \ngot %v", cfg, tt.ms.config)
+			//	t.Logf("want: %v \ngot %v", cfg, tt.ms.config)
 		})
 	}
 }
@@ -73,7 +72,7 @@ func TestMiner_StartMining_StopMining(t *testing.T) {
 	}
 	err = m.StartMining(ctx)
 	if err != nil {
-		fmt.Printf("%v", err)
+		t.Fatalf("%v", err)
 	}
 	time.Sleep(3 * time.Second)
 	err = m.StopMining()
@@ -112,6 +111,9 @@ func TestMiner_ConsoleMetrics(t *testing.T) {
 
 func TestInterleaveFilter(t *testing.T) {
 	d := int64(155332121)
+	if err := ConfigLogger("logging.conf", false); err != nil {
+		t.Fatal("failed configuring logger")
+	}
 
 	tests := []struct {
 		name    string
@@ -120,7 +122,8 @@ func TestInterleaveFilter(t *testing.T) {
 	}{
 		{"Works", "99|66: 73/1983.20 ms - 2", false},
 		{"nan", "9a9|66: 73/1983.20 ms - 2", true},
-		{"", "99|66: 73/1a983.20 ms - 2", true},
+		{"nan2", "99|66: 73/1a983.20 ms - 2", true},
+		{"n/a", "N/A ", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -84,10 +84,11 @@ func DefaultConfig() *viper.Viper {
 	cfg.SetDefault("Device.MaxResetSecs", 3)
 	cfg.SetDefault("Device.Count", 1)
 
-	cfg.SetDefault("Grafana.Enabled", false)
-	cfg.SetDefault("Grafana.IP", "192.168.0.29")
-	cfg.SetDefault("Grafana.Port", 8089)
-	cfg.SetDefault("Grafana.RefreshRate", 5)
+	cfg.SetDefault("Influx.Enabled", false)
+	cfg.SetDefault("Influx.IP", "192.168.0.29")
+	cfg.SetDefault("influx.DB", "hashmonitor")
+	cfg.SetDefault("Influx.Port", 8089)
+	cfg.SetDefault("Influx.FlushSec", 10*time.Second)
 
 	cfg.SetDefault("Slack.Url", "https://hooks.slack.com/services/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")
 	cfg.SetDefault("Slack.Username", "unsetUserName")
