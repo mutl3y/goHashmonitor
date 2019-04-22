@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// default logger goes to std.out
 var log = logrus.StandardLogger()
 
 func ConfigLogger(fn string, force bool) (err error) {
@@ -88,3 +89,5 @@ hooks{
 	}
 }
 `
+
+// todo replace slack url with std goHashmonitor version

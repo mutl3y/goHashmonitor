@@ -15,7 +15,21 @@ import (
 	"github.com/spf13/viper"
 )
 
-func TestClient_Write(t *testing.T) {
+var (
+	testCfg = viper.New()
+	db      = "hashMonitor"
+)
+
+func init() {
+	testCfg.Set("Influx.Enabled", true)
+	testCfg.Set("Influx.DB", db)
+	testCfg.Set("Influx.Retention", time.Second*10)
+	testCfg.Set("Influx.Ip", "192.168.0.29")
+	testCfg.Set("Influx.Port", 8086)
+
+}
+
+func Test_Inf_Client_Write(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		in, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -63,7 +77,7 @@ func TestClient_Write(t *testing.T) {
 	}
 }
 
-func TestExampleNewClient(t *testing.T) {
+func Test_NewMetricsClient(t *testing.T) {
 	tests := []struct {
 		name string
 	}{
@@ -80,12 +94,11 @@ func TestExampleNewClient(t *testing.T) {
 }
 
 func TestExampleClient_Ping(t *testing.T) {
-	db := "dbd"
-	cfg = viper.New()
-	cfg.Set("Influx.Enabled", true)
-	cfg.Set("Influx.DB", db)
+	tdb := "dbd"
+	testCfg.Set("Influx.DB", tdb)
 	c := NewMetricsClient()
-	err := c.Config(influxUrl)
+	err := c.Config(testCfg)
+
 	if err != nil {
 		t.Fatalf("failed to configure influx %v", err)
 	}
@@ -96,11 +109,6 @@ func TestExampleClient_Ping(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewMetricsClient()
-			err := c.Config(influxUrl)
-			if err != nil {
-				t.Fatalf("failed to config influx %v", err)
-			}
 			_, err = c.Ping()
 			if err != nil {
 				t.Fatalf("failed to ping influx %v", err)
@@ -111,12 +119,8 @@ func TestExampleClient_Ping(t *testing.T) {
 }
 
 func TestExampleClient_Query(t *testing.T) {
-	cfg = viper.New()
-	cfg.Set("Influx.Enabled", true)
-	cfg.Set("Influx.DB", "hashmonitor")
-
 	c := NewMetricsClient()
-	err := c.Config(influxUrl)
+	err := c.Config(testCfg)
 	if err != nil {
 		t.Fatalf("failed to configure influx %v", err)
 	}
@@ -138,14 +142,11 @@ func TestExampleClient_Query(t *testing.T) {
 }
 
 func Test_Write(t *testing.T) {
-	db := "hashmonitorTest2"
-	cfg = viper.New()
-	cfg.Set("Influx.Enabled", true)
-	cfg.Set("Influx.DB", db)
-	cfg.Set("Influx.Retention", db)
+	tdb := "hashmonitorTest2"
+	testCfg.Set("Influx.DB", tdb)
 	err := ConfigLogger("logging.conf", false)
 	c := NewMetricsClient()
-	err = c.Config(influxUrl)
+	err = c.Config(testCfg)
 	if err != nil {
 		t.Fatalf("failed to configure influx %v", err)
 	}
@@ -177,18 +178,17 @@ func Test_Write(t *testing.T) {
 		})
 	}
 
+	// the write function sends into a message queue, need sleep to allow backGroundWriter to do its work
 	time.Sleep(2 * time.Second)
 
 }
 
 func Test_metrics_checkDB(t *testing.T) {
-	db := "dbd"
-	cfg = viper.New()
-	cfg.Set("Influx.Enabled", true)
-	cfg.Set("Influx.DB", db)
+	tdb := "dbd"
+	testCfg.Set("Influx.DB", tdb)
 	err := ConfigLogger("logging.conf", false)
 	c := NewMetricsClient()
-	err = c.Config(influxUrl)
+	err = c.Config(testCfg)
 	if err != nil {
 		t.Fatalf("failed to configure influx %v", err)
 	}

@@ -88,6 +88,8 @@ func DefaultConfig() *viper.Viper {
 	cfg.SetDefault("Influx.IP", "192.168.0.29")
 	cfg.SetDefault("influx.DB", "hashmonitor")
 	cfg.SetDefault("Influx.Port", 8089)
+	cfg.SetDefault("influx.User", nil)
+	cfg.SetDefault("Influx.Pw", nil)
 	cfg.SetDefault("Influx.FlushSec", 10*time.Second)
 
 	cfg.SetDefault("Slack.Url", "https://hooks.slack.com/services/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")

@@ -10,8 +10,7 @@ import (
 var Debug bool
 
 func debug(f string, args ...interface{}) {
-	fmt.Println("DEBUG")
-	fmt.Printf(f, args...)
+	fmt.Printf("DEBUG: "+f, args...)
 
 }
 
