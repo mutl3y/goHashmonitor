@@ -117,7 +117,7 @@ func TestConfigLogger(t *testing.T) {
 			}
 
 			if err := ConfigLogger(fn, tt.force); (err != nil) != tt.wantErr {
-				t.Errorf("%v:  %v, wantErr %v", tt.name, err, tt.wantErr)
+				t.Errorf("%v:  %v, match %v", tt.name, err, tt.wantErr)
 			}
 
 		})
@@ -205,8 +205,8 @@ hooks{
 			// 		t.Errorf("failed to config logger")
 			// 	}
 			// c.Hijack("log","")
-			// 	// if err := ConfigLogger(fn, tt.force); (err != nil) != tt.wantErr {
-			// 	// 	t.Errorf("%v:  %v, wantErr %v", tt.name, err, tt.wantErr)
+			// 	// if err := ConfigLogger(fn, tt.force); (err != nil) != tt.match {
+			// 	// 	t.Errorf("%v:  %v, match %v", tt.name, err, tt.match)
 			// 	// }
 			// fmt.Printf("%v",log)
 		})

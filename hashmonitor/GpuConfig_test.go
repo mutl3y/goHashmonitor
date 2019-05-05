@@ -70,7 +70,7 @@ func TestAmdConf_gpuConfParse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.mc.gpuConfParse(tt.args.r); (err != nil) != tt.wantErr {
-				t.Errorf("AmdConf.gpuConfParse() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AmdConf.gpuConfParse() error = %v, match %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -92,7 +92,7 @@ func TestAmdConf_amdIntTemplate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotStr, err := tt.mc.amdIntTemplate(tt.args.interleave, tt.args.dir)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AmdConf.amdIntTemplate() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AmdConf.amdIntTemplate() error = %v, match %v", err, tt.wantErr)
 				return
 			}
 			if gotStr != tt.wantStr {

@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"fmt"
+	"goHashmonitor/hashmonitor"
 
 	"github.com/spf13/cobra"
 )
@@ -29,7 +29,7 @@ This will start a mining session ignoring any profit mining features
 hashrate drop and restart options are still valid
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("mine called")
+		hashmonitor.Mine()
 	},
 }
 

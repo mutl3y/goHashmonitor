@@ -17,14 +17,15 @@ import (
 )
 
 var hasAdmin bool
-var supportedCards = []string{"Radeon Vega Frontier Edition", "Radeon RX 570 Series", "Radeon RX 580 Series", "Radeon RX Vega", "Radeon (TM) RX 470 Graphics", "Radeon (TM) RX 480 Graphics"}
+
+// var supportedCards = []string{"Radeon Vega Frontier Edition", "Radeon RX 570 Series", "Radeon RX 580 Series", "Radeon RX Vega", "Radeon (TM) RX 470 Graphics", "Radeon (TM) RX 480 Graphics"}
 
 func init() {
 	switch OS := runtime.GOOS; {
 	case OS == "windows":
 		hasAdmin, _ = winElevationCheck()
 		if !hasAdmin {
-			log.Fatalf("You need to run this as admin or allow bypass of UAC\n")
+			log.Fatalf("You need to run this as admin or allow bypass of UAC")
 		}
 	default:
 		log.Fatalf("OS not yet supported: %v ", OS)
@@ -115,15 +116,23 @@ type devConCard struct {
 	pcidev, name string
 	running      bool
 }
-type CardData []devConCard
-
-func NewCardData() *CardData {
-	d := make(CardData, 0, 20)
-	return &d
+type CardData struct {
+	cards        []devConCard
+	dir          string
+	resetEnabled bool
 }
+
+func NewCardData(c *viper.Viper) *CardData {
+	d := &CardData{}
+	// 	d.cards  =	make([]devConCard, 0, 20)
+	d.dir = c.GetString("Core.Stak.Dir")
+	d.resetEnabled = c.GetBool("Device.Reset.Enabled")
+	return d
+}
+
 func (ca *CardData) String() string {
 	var str, status string
-	for _, v := range *ca {
+	for _, v := range ca.cards {
 		switch v.running {
 		case true:
 			status = "running"
@@ -135,17 +144,19 @@ func (ca *CardData) String() string {
 
 	return str
 }
-func (ca *CardData) GetStatus(c *viper.Viper) error {
+func (ca *CardData) GetStatus() error {
+	// fmt.Printf("card config %v",ca)
 	switch Os := runtime.GOOS; {
 	case Os == "windows":
-		by, err := winCmd(c.GetString("Core.Stak.Dir"), "devcon status =display")
+
+		by, err := winCmd(ca.dir, "devcon.exe status =display")
 		if err != nil {
 			log.Errorf("error reseting cards %v", err)
 		}
 
 		err = ca.devConParse(by)
 		if err != nil {
-			log.Errorf("error parsing devcon output:  %v\n", err)
+			log.Errorf("error parsing devcon output:  %v", err)
 		}
 		return errors.Wrap(err, "failed updating device status")
 	default:
@@ -153,22 +164,22 @@ func (ca *CardData) GetStatus(c *viper.Viper) error {
 	}
 
 }
-func (ca *CardData) ResetCards(c *viper.Viper, force bool) error {
-	if !c.GetBool("Device.Reset.Enabled") {
-		return fmt.Errorf("device reset is not enabled")
+func (ca *CardData) ResetCards(force bool) error {
+	if !ca.resetEnabled {
+		return nil
 	}
+
 	switch Os := runtime.GOOS; {
 	case Os == "windows":
-		for _, v := range *ca {
+		for _, v := range ca.cards {
 			if !v.running || force {
-				log.Infof("Resetting %v\n", v.name)
+				log.Debugf("Resetting %v", v.name)
 				command := fmt.Sprintf("powershell devcon.exe restart \"@%v\"", v.pcidev)
-				by, err := winCmd(c.GetString("Core.Stak.Dir"), command)
+				by, err := winCmd(ca.dir, command)
 				if err != nil {
-					log.Errorf("error running %v", err)
+					return fmt.Errorf("error running %v", err)
 				}
 
-				log.Infof("%+v \n", by)
 				err = ca.devConParse(by)
 				if err != nil {
 					return errors.Wrap(err, fmt.Sprintf("failed resetting device %v", v.name))
@@ -178,7 +189,7 @@ func (ca *CardData) ResetCards(c *viper.Viper, force bool) error {
 	default:
 		return fmt.Errorf("%v not supported", Os)
 	}
-	err := ca.GetStatus(c)
+	err := ca.GetStatus()
 	return err
 }
 
@@ -189,7 +200,7 @@ func (ca *CardData) devConParse(r io.Reader) error {
 	card := devConCard{}
 	wholeCard := false
 
-	*ca = CardData{}
+	ca.cards = make([]devConCard, 0, 20)
 
 	for scanner.Scan() {
 		s := scanner.Text()
@@ -209,11 +220,10 @@ func (ca *CardData) devConParse(r io.Reader) error {
 			card.running = false
 			wholeCard = true
 		default:
-			log.Debugf("unreconized devcon response %v\n", s)
+			log.Debugf("unreconized devcon response %v", s)
 		}
 		if wholeCard {
-			t := *ca
-			*ca = append(t, card)
+			ca.cards = append(ca.cards, card)
 			card = devConCard{}
 
 			wholeCard = false

@@ -152,7 +152,7 @@ func Test_Write(t *testing.T) {
 	}
 
 	go c.backGroundWriter()
-	defer close(c.pointsQueue)
+	defer c.Stop()
 	tests := []struct {
 		name string
 	}{
@@ -171,7 +171,7 @@ func Test_Write(t *testing.T) {
 					t.Fatalf("failed to write to influx %v", err)
 				}
 			}
-			//ti := rand.Int()
+			// ti := rand.Int()
 			ta := rand.Intn(10000)
 			time.Sleep(time.Duration(ta))
 
@@ -209,7 +209,7 @@ func Test_metrics_checkDB(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			if err := c.checkDB(); (err != nil) != tt.wantErr {
-				t.Errorf("metrics.checkDB() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metrics.checkDB() error = %v, match %v", err, tt.wantErr)
 			}
 		})
 	}

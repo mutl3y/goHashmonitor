@@ -24,8 +24,8 @@ func Test_defaultConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := DefaultConfig()
-			if cfg == nil {
+			tcfg := DefaultConfig()
+			if tcfg == nil {
 				t.Errorf("DefaultConfig() failed")
 				return
 			}
@@ -155,7 +155,7 @@ func TestConfig(t *testing.T) {
 
 			}
 			if (res != tt.pair.result) != tt.wantErr {
-				t.Logf("%v want %v %T got %v %T , wantErr %v", tt.name, tt.pair.value, tt.pair.value, res, res, tt.wantErr)
+				t.Logf("%v want %v %T got %v %T , match %v", tt.name, tt.pair.value, tt.pair.value, res, res, tt.wantErr)
 				// 		t.Logf("%v %T", res2, res2)
 			}
 			files <- file

@@ -3,8 +3,6 @@ package hashmonitor
 import (
 	"fmt"
 	"testing"
-
-	"github.com/spf13/viper"
 )
 
 func TestDevCon(t *testing.T) {
@@ -12,20 +10,20 @@ func TestDevCon(t *testing.T) {
 	if err != nil {
 		t.Errorf("error getting config %v", err)
 	}
-	results, err := winCmd(config.GetString("Core.Stak.Dir"), "powershell devcon.exe status =display")
+	res, err := winCmd(config.GetString("Core.Stak.Dir"), "powershell devcon.exe status =display")
 	if err != nil {
 		t.Errorf("%v", err)
 	}
-	fmt.Println(results)
+	fmt.Println(res)
 }
 
 func TestGetStatus(t *testing.T) {
 	config, _ := Config()
-	cards := NewCardData()
+	cd := NewCardData(config)
 
-	err := cards.GetStatus(config)
+	err := cd.GetStatus()
 	if err == nil {
-		for k, v := range *cards {
+		for k, v := range cd.cards {
 			fmt.Printf("Card-%v %+v %+v\n", k, v.name, v.running)
 		}
 	}
@@ -43,7 +41,7 @@ func Test_winElevationCheck(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := winElevationCheck()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("winElevationCheck() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("winElevationCheck() error = %v, match %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
@@ -58,31 +56,39 @@ func TestCardData_ResetCards(t *testing.T) {
 	rstDisabled, _ := Config()
 	rstEnabled.Set("Device.Reset.Enabled", true)
 	rstDisabled.Set("Device.Reset.Enabled", false)
-	cards := NewCardData()
-	err := cards.GetStatus(rstEnabled)
+	rstEnabled.Set("Core.Stak.Dir", "xmr-stak")
+	rstDisabled.Set("Core.Stak.Dir", "xmr-stak")
+
+	enabled := NewCardData(rstEnabled)
+	disabled := NewCardData(rstDisabled)
+	// err := ConfigLogger("logging.conf",false)
+
+	err := enabled.GetStatus()
 	if err != nil {
 		t.Errorf("%+v\n", err)
 	}
-	type args struct {
-		c     *viper.Viper
-		force bool
+	err = disabled.GetStatus()
+	if err != nil {
+		t.Errorf("%+v\n", err)
 	}
 
 	tests := []struct {
 		name    string
-		ca      *CardData
-		args    args
+		ca      CardData
+		force   bool
 		wantErr bool
 	}{
-		{"rstEnabled noForce", cards, args{rstEnabled, false}, false},
-		{"rstDisabled noForce", cards, args{rstDisabled, false}, true},
-		{"rstEnabled force", cards, args{rstEnabled, true}, false},
-		{"rstDisabled force", cards, args{rstDisabled, true}, true},
+		{"rstEnabled noForce", *enabled, false, false},
+		{"rstDisabled noForce", *disabled, false, false},
+		{"rstEnabled force", *enabled, true, false},
+		{"rstDisabled force", *disabled, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.ca.ResetCards(tt.args.c, tt.args.force); (err != nil) != tt.wantErr {
-				t.Errorf("CardData.ResetCards() error = %v, wantErr %v", err, tt.wantErr)
+			ca := tt.ca
+			if err = ca.ResetCards(tt.force); (err != nil) != tt.wantErr {
+				fmt.Printf("\n test config \n %+v\n", ca)
+				t.Errorf("CardData.ResetCards() error = %v, match %v", err, tt.wantErr)
 			}
 		})
 	}

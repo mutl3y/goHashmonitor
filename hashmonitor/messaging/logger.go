@@ -54,13 +54,13 @@ func (l *logger) Send(m msg) error {
 	return nil
 }
 
-func sendFile(m msg) {
-
-}
-
-func NewLog(c *viper.Viper) *logger {
-	return &logger{}
-}
+// func sendFile(m msg) {
+//
+// }
+//
+// func NewLog(c *viper.Viper) *logger {
+// 	return &logger{}
+// }
 
 func (l *logger) fileWriter(chan msg) {
 	cwd, err := os.Getwd()

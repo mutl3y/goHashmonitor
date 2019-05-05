@@ -67,6 +67,6 @@ func initConfig() {
 
 }
 
-func getHelp() {
-	// 	fmt.Printf("%v",InterleaveCmd.HelpFunc())
-}
+// func getHelp() {
+// 	// 	fmt.Printf("%v",InterleaveCmd.HelpFunc())
+// }

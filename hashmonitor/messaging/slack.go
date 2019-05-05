@@ -40,13 +40,13 @@ func (api *slackConfig) NewMessage(msg string) *slackhook.Message {
 // type webHookMessage slackhook.Message
 // type Client *slackhook.Client
 
-func NewClient(webhook string) *slackhook.Client {
+func newClient(webhook string) *slackhook.Client {
 	c := slackhook.New(webhook)
 	return c
 }
 
-func (s *slackConfig) SendMessage(msg, slType string, ts int) error {
-	m := s.NewMessage(msg)
+func (api *slackConfig) SendMessage(msg, slType string, ts int) error {
+	m := api.NewMessage(msg)
 
 	m.Text = msg
 	var col string
@@ -93,6 +93,6 @@ func (s *slackConfig) SendMessage(msg, slType string, ts int) error {
 	}
 
 	m.AddAttachment(&a)
-	err = s.Client.Send(m)
+	err = api.Client.Send(m)
 	return errors.Wrap(err, "failed sending slack message")
 }

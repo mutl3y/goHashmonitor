@@ -16,8 +16,8 @@ type metrics struct {
 	db          string
 	refresh     time.Duration
 	pointsQueue chan inf.Point
-	done        chan bool
-	enabled     bool
+	// done        chan bool
+	enabled bool
 }
 
 type Metrics interface {
@@ -29,7 +29,7 @@ type Metrics interface {
 func NewMetricsClient() *metrics {
 	m := new(metrics)
 	m.pointsQueue = make(chan inf.Point, 300)
-	m.done = make(chan bool)
+	// m.done = make(chan bool)
 	return m
 }
 
@@ -85,7 +85,7 @@ func (m *metrics) Config(c *viper.Viper) error {
 	m.db = c.GetString("Influx.DB")
 	if m.db == "" {
 		log.Infof("failed to set Influx DB")
-		m.db = "hashmonitor"
+		m.db = "goHashmonitor"
 	}
 
 	return nil
@@ -105,11 +105,10 @@ func (m *metrics) Query(c, d string) (string, error) {
 		Database: d,
 	}
 	response, err := m.client.Query(q)
-	resString := fmt.Sprintf("%v", response.Results[0])
-	if err != nil && response.Error() != nil {
-		log.Println(response.Results)
+	if err != nil {
 		return "", err
 	}
+	resString := fmt.Sprintf("%v", response.Results[0])
 
 	return resString, nil
 }
@@ -132,54 +131,67 @@ func (m *metrics) Write(measurment string, tags map[string]string, fields map[st
 
 		return errors.New("stats queue full, discarding")
 	case m.pointsQueue <- p:
+
+		// debug("wrote to queue")
 	}
 	return nil
 }
 
 func (m *metrics) checkDB() error {
 	// turn call into a no op if not enabled
-	if !m.enabled {
-		log.Infof("metrics disabled")
+	if !m.enabled || m == nil {
+		debug("metrics disabled")
 		return nil
 	}
+
+	debug("Checking Influx DB")
+
 	query := inf.Query{
 		Command:  fmt.Sprintf("CREATE DATABASE %s", m.db),
 		Database: m.db,
 	}
 	results, err := m.client.Query(query)
-	if err != nil {
-		log.Fatalf("error using Influx, %v", err)
+	if err != nil || results.Err != nil {
+		return fmt.Errorf("failed creating DB %v", err)
 
 	}
 
-	if results.Err != nil {
-		return fmt.Errorf("failed creating DB")
+	query = inf.Query{
+		Command:  fmt.Sprintf("CREATE RETENTION POLICY \"a_year\" ON \"%s\" DURATION 52w REPLICATION 1", m.db),
+		Database: m.db,
+	}
+	results, err = m.client.Query(query)
+	if err != nil || results.Err != nil {
+		return fmt.Errorf("failed creating retension policy %v", err)
 
 	}
 
-	debug("checkDB results %v", results)
-	return err
+	return nil
 }
 
-func (m *metrics) afterTime(t *time.Time) <-chan time.Time {
+func afterTime(t time.Time) <-chan time.Time {
 	var C chan time.Time
-	if time.Now().After(*t) {
-		*t = time.Now().Add(time.Second * 2)
+	if time.Now().After(t) {
+		t = time.Now().Add(time.Second * 2)
 		return time.After(time.Duration(0))
 	}
 
 	return C
 }
 
-var nextFlush time.Time
-
 func (m *metrics) backGroundWriter() {
+
 	// turn call into a no op if not enabled
 	if !m.enabled {
+		fmt.Printf("stats disabled\n")
 		return
 	}
-
-	log.Info("Starting background Influx writer")
+	err := m.checkDB()
+	if err != nil {
+		log.Fatalf("check db failed %v", err)
+	}
+	var nextFlush time.Time
+	debug("Starting Influx Writer")
 	type queue struct {
 		points []inf.Point
 		sync.RWMutex
@@ -189,49 +201,61 @@ func (m *metrics) backGroundWriter() {
 	q.points = blankPoints
 
 	flush := func(q *queue) {
+		debug("backGroundWriter flushing metrics queue")
+		nextFlush = time.Now().Add(m.refresh)
+		q.Lock()
 		length := len(q.points)
+
 		if length >= 1 {
-			q.Lock()
+
 			p := q.points
 			q.points = blankPoints
-			q.Unlock()
+			// todo move retention policy to config
 			go func(p []inf.Point) {
-				res, err := m.client.Write(inf.BatchPoints{Points: p, Database: m.db, RetentionPolicy: "autogen", Time: time.Now()})
+				res, err := m.client.Write(inf.BatchPoints{Points: p, Database: m.db, RetentionPolicy: "a_year", Time: time.Now()})
 				if err != nil {
 					log.Errorf("backGroundWriter: %v", err)
 				}
-				debug("client write: %+v\n", p)
-				debug("response %v\n", res)
+				if Debug {
+					debug("client write: %v\n", &p)
+					debug("response %v\n", res)
+				}
 			}(p)
+
 		}
+		q.Unlock()
 	}
 
 	for {
 		select {
 		case p, ok := <-m.pointsQueue:
 			if !ok {
-				log.Debugf("backGroundWriter: influx queue closed")
 				flush(q)
-				log.Debugf("Stopping background influx writer")
-				time.Sleep(time.Second * 2)
+				debug("Stopping Influx Writer")
 				return
 			}
 			q.Lock()
 			q.points = append(q.points, p)
 			q.Unlock()
-		case <-m.afterTime(&nextFlush):
+		case <-afterTime(nextFlush):
 			flush(q)
-
-		case _, ok := <-m.done:
-			if !ok {
-				log.Debugf("backGroundWriter: done called")
-				flush(q)
-				time.Sleep(time.Second * 2)
-				return
-			}
+			//
+			// case _, ok := <-m.done:
+			// 	if !ok {
+			// 		debug("Stopping Influx Writer")
+			// 		flush(q)
+			// 		return
+			// }
 
 		}
 	}
+}
+
+func (m *metrics) Stop() {
+	// debug("%v %T", &m.done, &m.done)
+	// m.done <- true
+	close(m.pointsQueue)
+	// close(m.done)
 }
 
 //  stats to send

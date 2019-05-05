@@ -54,7 +54,7 @@ func Test_ConfigMiner(t *testing.T) {
 				}
 			}
 
-			//	t.Logf("want: %v \ngot %v", cfg, tt.ms.config)
+			// 	t.Logf("want: %v \ngot %v", cfg, tt.ms.config)
 		})
 	}
 }
@@ -83,14 +83,19 @@ func TestMiner_StartMining_StopMining(t *testing.T) {
 }
 
 func TestMiner_ConsoleMetrics(t *testing.T) {
-	c, err := Config()
+	testCfg, err := Config()
 	if err != nil {
 		t.Fatalf("Failed to get config %v", err)
 	}
-
+	debug("%v", testCfg)
+	testCfg.Set("Influx.Enabled", true)
+	testCfg.Set("Influx.DB", db)
+	testCfg.Set("Influx.Retention", time.Second*10)
+	testCfg.Set("Influx.Ip", "192.168.0.29")
+	testCfg.Set("Influx.Port", 8086)
 	m := NewMiner()
 
-	_, err = m.ConfigMiner(c)
+	_, err = m.ConfigMiner(testCfg)
 	if err != nil {
 		t.Fatalf("Failed configuring miner: %v", err)
 	}
@@ -101,16 +106,24 @@ func TestMiner_ConsoleMetrics(t *testing.T) {
 	}
 	//noinspection ALL
 	defer f.Close()
+
+	met := NewMetricsClient()
+	if err = met.Config(testCfg); err != nil {
+		debug("error %v", err)
+	}
+	met.enabled = true
+	met.db = "goHashmonitor"
+
+	go met.backGroundWriter()
+
 	testData := io.ReadCloser(f)
 	m.StdOutPipe = &testData
-	if err := m.ConsoleMetrics(); err != nil {
-		t.Errorf("miner.ConsoleMetrics() %v", err)
-	}
-
+	m.ConsoleMetrics(met)
+	met.Stop()
 }
 
 func TestInterleaveFilter(t *testing.T) {
-	d := int64(155332121)
+	// 	d := int64(155332121)
 	if err := ConfigLogger("logging.conf", false); err != nil {
 		t.Fatal("failed configuring logger")
 	}
@@ -127,8 +140,8 @@ func TestInterleaveFilter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := interleaveFilter(tt.msg, d); (err != nil) != tt.wantErr {
-				t.Errorf("interleaveFilter() error = %v, wantErr %v", err, tt.wantErr)
+			if _, err := interleaveFilter(tt.msg); (err != nil) != tt.wantErr {
+				t.Errorf("interleaveFilter() error = %v, match %v", err, tt.wantErr)
 			}
 		})
 	}

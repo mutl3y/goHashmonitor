@@ -13,7 +13,7 @@ import (
 // func Test_testPlan_New(t *testing.T) {
 // 	tests := []struct {
 // 		name    string
-// 		wantErr bool
+// 		match bool
 // 	}{
 // 		{"amd20", false},
 // 		{"amd/20", true},
@@ -22,8 +22,8 @@ import (
 // 	for _, tt := range tests {
 // 		t.Run(tt.name, func(t *testing.T) {
 // 			tp := NewTestPlan(tt.name)
-// 			if err := tp.NewFile(); (err != nil) != tt.wantErr {
-// 				t.Errorf("testPlan.NewFile() error = %v, wantErr %v", err, tt.wantErr)
+// 			if err := tp.NewFile(); (err != nil) != tt.match {
+// 				t.Errorf("testPlan.NewFile() error = %v, match %v", err, tt.match)
 // 			}
 // 		})
 // 	}
@@ -31,7 +31,7 @@ import (
 // 	for _, v := range tests {
 // 		f := fmt.Sprintf("%v/%v.toml", tpDir, v.name)
 // 		err := os.Remove(f)
-// 		if err != nil && !v.wantErr {
+// 		if err != nil && !v.match {
 // 			t.Logf("Cleanup failed %v", err)
 // 		}
 // 	}
@@ -64,7 +64,7 @@ func Test_testPlan_Save(t *testing.T) {
 			tp.MaxIntensity = tt.fields.maxIntensity
 			tp.RunTime = tt.fields.runTimeSecs
 			if err := tp.Save(); (err != nil) != tt.wantErr {
-				t.Errorf("testPlan.Save() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("testPlan.Save() error = %v, match %v", err, tt.wantErr)
 			} else {
 				err = os.Remove(tp.File)
 				if err != nil {
@@ -184,11 +184,11 @@ func Test_testPlan_Results(t *testing.T) {
 // 	tests := []struct {
 // 		name    string
 // 		fields  fields
-// 		wantErr bool
+// 		match bool
 // 	}{
-// 		{name: "", fields: fields{name: "amd_1", minIntensity: 20, maxIntensity: 40, runTime: "10s"}, wantErr: false},
-// 		// {name: "", fields: fields{name: "amd/20", minIntensity: 20, maxIntensity: 40, runTime: "10s"}, wantErr: true},
-// 		// {name: "", fields: fields{name: "sp3cial", minIntensity: 20, maxIntensity: 20, runTime: "10s"}, wantErr: false},
+// 		{name: "", fields: fields{name: "amd_1", minIntensity: 20, maxIntensity: 40, runTime: "10s"}, match: false},
+// 		// {name: "", fields: fields{name: "amd/20", minIntensity: 20, maxIntensity: 40, runTime: "10s"}, match: true},
+// 		// {name: "", fields: fields{name: "sp3cial", minIntensity: 20, maxIntensity: 20, runTime: "10s"}, match: false},
 // 	}
 // 	for _, tt := range tests {
 // 		t.Run(tt.name, func(t *testing.T) {
@@ -200,13 +200,13 @@ func Test_testPlan_Results(t *testing.T) {
 // 				t.Errorf("testPlan.Run().parsetime\n %v", err)
 // 			}
 // 			tp.RunTime = ti
-// 			if err := tp.Load(true); (err != nil) != tt.wantErr {
+// 			if err := tp.Load(true); (err != nil) != tt.match {
 // 				t.Errorf("testPlan.Results() error loading file %v\n", err)
 //
 // 			}
 //
 // 			if err := tp.Run(); err != nil {
-// 				t.Errorf("testPlan.Run() error = %v, wantErr %v", err, tt.wantErr)
+// 				t.Errorf("testPlan.Run() error = %v, match %v", err, tt.match)
 // 			}
 // 		})
 // 	}
@@ -243,7 +243,7 @@ func Test_testPlan_Run(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.t.Run(tt.args.c); (err != nil) != tt.wantErr {
-				t.Errorf("testPlan.Run() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("testPlan.Run() error = %v, match %v", err, tt.wantErr)
 			}
 		})
 	}

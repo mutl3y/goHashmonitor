@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SkyrisBactera/pkill"
 	"github.com/spf13/viper"
 )
 
@@ -74,7 +75,7 @@ func NewMiner() *miner {
 	return m
 }
 
-// ConfigMiner creates the base config and attaches a context and embeds a cancel func
+// ConfigMiner creates the base config, attaches a context and embeds a cancel func in the struct
 func (ms *miner) ConfigMiner(c *viper.Viper) (context.Context, error) {
 	ms.config.dir = root + c.GetString("Core.Stak.Dir")
 	if ms.config.dir == root {
@@ -113,32 +114,50 @@ func (ms *miner) StartMining(ctx context.Context) error {
 
 	ms.Process = cmd.Process
 	ms.StdOutPipe = &stdPipe
+	debug("Starting STAK process ID %v", ms.Process.Pid)
 	return err
 }
 
-func (ms *miner) ConsoleMetrics() error {
+func (ms *miner) ConsoleMetrics(met *metrics) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Errorf("failed to set hostname %v", err)
+	}
+	tags := map[string]string{"server": hostname}
+
 	scanner := bufio.NewScanner(*ms.StdOutPipe)
 	scanner.Split(bufio.ScanLines)
 	for scanner.Scan() {
-		err := conParse(scanner.Bytes())
+		m, err := conParse(scanner.Bytes())
 		if err != nil && err.Error() != "no match" {
 			log.Errorf("Error parsing %v\n", err)
+
+		}
+		if len(m) > 0 {
+			if err := met.Write("consoleMetrics", tags, m); err != nil {
+				debug("console metrics error %v", err)
+			}
+
+			debug("ConsoleMetrics %+v", m)
 		}
 	}
-	if err := scanner.Err(); err != nil {
+	if err = scanner.Err(); err != nil {
 		log.Errorf("Invalid input: %s", err)
 	}
-	return nil
+
+	return
 }
 
-func conParse(b []byte) error {
+func conParse(b []byte) (m map[string]interface{}, err error) {
+	m = map[string]interface{}{}
 	s := string(b)
+	// fmt.Println(s)
 	if !strings.HasPrefix(s, "[") {
-		return fmt.Errorf("no match")
+		return m, fmt.Errorf("no match")
 	}
 
 	// grab datestamp
-	d := s[1:20]
+	// d := s[1:20]
 
 	// grab message
 	s = s[24:]
@@ -156,21 +175,23 @@ func conParse(b []byte) error {
 
 		switch s[:12] {
 		case "OpenCL Inter":
-			unixTime, err := parseStakUnixTime(d)
+			md, err := interleaveFilter(s[18:])
 			if err != nil {
-				unixTime = 0
-			}
-			if err := interleaveFilter(s[18:], unixTime); err != nil {
 				log.Errorf("conParse decoding error %v\n", err)
+
 			}
+			for k, v := range md {
+				m[k] = v
+			}
+
 		case "OpenCL devic":
-			log.Debugf("OpenCL device %v\n", s)
+			debug("OpenCL device %v\n", s)
 		default:
 			log.Debugf("conParse unparsed openCl %v\n", s)
 
 		}
 	case "Mini":
-		log.Debugf("algorithm \t%v\n", s[13:])
+		debug("algorithm \t%v\n", s[13:])
 
 	// discarded and non printed below
 	case "Devi": // fmt.Printf("device \t\t%v\n", s)
@@ -182,12 +203,11 @@ func conParse(b []byte) error {
 	case "Star": // fmt.Printf("startup \t%v\n", s)
 	case "New ": // fmt.Printf("new block %v\n", s)
 	case "Resu":
-		log.Debugf("result %v\n", s)
+		debug("result %v\n", s)
 	default:
-		log.Debugf("Unparsed Message %v\n", s)
+		debug("Unparsed Message %v\n", s)
 	}
-
-	return nil
+	return m, nil
 }
 func parseStakUnixTime(s string) (int64, error) {
 	date, err := time.Parse("2006-01-02 15:04:05", s)
@@ -198,61 +218,68 @@ func parseStakUnixTime(s string) (int64, error) {
 
 }
 
-func interleaveFilter(s string, d int64) (err error) {
+func interleaveFilter(s string) (m map[string]interface{}, err error) {
 	// `<gpu id>|<thread id on the gpu>: <last delay>/<average calculation per hash bunch> ms - <interleave value>`
-	type it struct {
-		date                int64
-		gpu, thread, last   int64
-		average, interleave float64
-	}
-
-	m := it{}
+	m = make(map[string]interface{})
 
 	fields := strings.Fields(s)
-
-	m.date = d
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		err = fmt.Errorf("dsddsdfsd")
+	// 	}
+	// }()
 
 	gpuThread := strings.Split(fields[0][:len(fields[0])-1], "|")
-	m.gpu, err = strconv.ParseInt(gpuThread[0], 0, 64)
-	if err != nil {
-		return fmt.Errorf("gpu %v", err)
+	if m["gpu"], err = strconv.ParseInt(gpuThread[0], 0, 64); err != nil {
+		return m, fmt.Errorf("gpu %v", err)
 	}
-	m.thread, err = strconv.ParseInt(gpuThread[1], 0, 64)
-	if err != nil {
-		return fmt.Errorf("thread %v", err)
+
+	if len(gpuThread) > 0 {
+		if m["thread"], err = strconv.ParseInt(gpuThread[1], 0, 64); err != nil {
+			return m, fmt.Errorf("thread %v", err)
+		}
 	}
 
 	// extract last and average
 	laPair := strings.Split(fields[1], "/")
-	m.last, err = strconv.ParseInt(laPair[0], 0, 64)
-	if err != nil {
-		return fmt.Errorf("last %v", err)
+	if m["last"], err = strconv.ParseInt(laPair[0], 0, 64); err != nil {
+		return m, fmt.Errorf("last %v", err)
 	}
-	m.average, err = strconv.ParseFloat(laPair[1], 64)
-	if err != nil {
-		return fmt.Errorf("average %v", err)
+	if m["average"], err = strconv.ParseFloat(laPair[1], 64); err != nil {
+		return m, fmt.Errorf("average %v", err)
 	}
 
 	if len(fields) >= 5 {
-		m.interleave, err = strconv.ParseFloat(fields[4], 64)
-		if err != nil {
-			return fmt.Errorf("interleave %v", err)
+		if m["interleave"], err = strconv.ParseFloat(fields[4], 64); err != nil {
+			return m, fmt.Errorf("interleave %v", err)
 		}
 	}
 
-	// todo
-	// log.Debugf("%+v\n", m)
-	return nil
+	return m, nil
 
 }
 
 func (ms *miner) StopMining() error {
-	log.Debugf("killing process id: %v", ms.Process.Pid)
+	debug("killing process id: %v", ms.Process.Pid)
 	ms.Stop()
 	if ms.Up {
-		err := ms.Process.Kill()
-		return err
+		ErrAccess := fmt.Errorf("access is denied")
+		if err := ms.Process.Kill(); err != nil && err != ErrAccess {
+			debug("failed to kill miner %v", err)
+			return err
+		}
 	}
+	exe := cfg.GetString("Core.Stak.Exe")
+	if exe == "" {
+		return fmt.Errorf("exe not specified")
+	}
+	exe = strings.ReplaceAll(exe, "./", "")
+
+	_, err := pkill.Pkill(exe)
+	if err != nil && (err.Error() != "exit status 1") {
+		debug("pkill error %v %v", exe, err)
+	}
+
 	return nil
 }
 
