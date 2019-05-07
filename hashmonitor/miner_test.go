@@ -83,19 +83,20 @@ func TestMiner_StartMining_StopMining(t *testing.T) {
 }
 
 func TestMiner_ConsoleMetrics(t *testing.T) {
-	testCfg, err := Config()
-	if err != nil {
-		t.Fatalf("Failed to get config %v", err)
-	}
-	debug("%v", testCfg)
-	testCfg.Set("Influx.Enabled", true)
-	testCfg.Set("Influx.DB", db)
-	testCfg.Set("Influx.Retention", time.Second*10)
-	testCfg.Set("Influx.Ip", "192.168.0.29")
-	testCfg.Set("Influx.Port", 8086)
-	m := NewMiner()
+	tCfg := viper.New()
+	// if err != nil {
+	// 	t.Fatalf("Failed to get config %v", err)
+	// }
+	tCfg.Set("Influx.Enabled", true)
+	tCfg.Set("Influx.DB", "consoleMetrics")
+	tCfg.Set("Influx.Retention", time.Second*10)
+	tCfg.Set("Influx.Ip", "192.168.0.29")
+	tCfg.Set("Influx.Port", 8086)
+	tCfg.Set("Core.Stak.Dir", root+"xmr-stak")
+	tCfg.Set("Core.Stak.Exe", "./xmr-stak.exe")
 
-	_, err = m.ConfigMiner(testCfg)
+	m := NewMiner()
+	_, err := m.ConfigMiner(tCfg)
 	if err != nil {
 		t.Fatalf("Failed configuring miner: %v", err)
 	}
@@ -108,11 +109,9 @@ func TestMiner_ConsoleMetrics(t *testing.T) {
 	defer f.Close()
 
 	met := NewMetricsClient()
-	if err = met.Config(testCfg); err != nil {
+	if err = met.Config(tCfg); err != nil {
 		debug("error %v", err)
 	}
-	met.enabled = true
-	met.db = "goHashmonitor"
 
 	go met.backGroundWriter()
 
@@ -137,10 +136,32 @@ func TestInterleaveFilter(t *testing.T) {
 		{"nan", "9a9|66: 73/1983.20 ms - 2", true},
 		{"nan2", "99|66: 73/1a983.20 ms - 2", true},
 		{"n/a", "N/A ", true},
+		{"", "[2019-05-06 22:03:21] : OpenCL 0|1: auto-tune validate intensity 520|512", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if _, err := interleaveFilter(tt.msg); (err != nil) != tt.wantErr {
+				t.Errorf("interleaveFilter() error = %v, match %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+func TestAutotuneFilter(t *testing.T) {
+	// 	d := int64(155332121)
+	if err := ConfigLogger("logging.conf", false); err != nil {
+		t.Fatal("failed configuring logger")
+	}
+
+	tests := []struct {
+		name    string
+		msg     string
+		wantErr bool
+	}{
+		{"", "OpenCL 0|1: auto-tune validate intensity 520|512", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := autotuneFilter(tt.msg); (err != nil) != tt.wantErr {
 				t.Errorf("interleaveFilter() error = %v, match %v", err, tt.wantErr)
 			}
 		})

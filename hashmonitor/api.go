@@ -24,7 +24,6 @@ type apiService struct {
 	Signal chan bool
 	limit  *simpleRateLimit
 	Stats  *rwStats
-	Up     bool
 }
 
 // NewStatsService returns a monitoring service with rate limiter
@@ -60,18 +59,15 @@ func (api *apiService) StatsCopy() stats {
 	api.Stats.mu.RLock()
 
 	stat := stats{}
-	// stat = api.Stats.data
-	fmt.Printf("statscopy1 %T %p %v\n", stat.Total, &stat.Total, stat.Total)
-	fmt.Printf("statscopy2 %T %p %v\n", api.Stats.data.Total, &api.Stats.data.Total, api.Stats.data.Total)
-	fmt.Printf("api     %+v\n", api.Stats.data)
-	fmt.Printf("stat    %+v\n", stat)
+	stat = api.Stats.data
+	// fmt.Printf("statscopy %T %p %v\n", stat.Total, &stat.Total, stat.Total)
 
 	api.Stats.mu.RUnlock()
 	return stat
 }
 
 func (api *apiService) StatsUpdate(s stats) {
-	debug("su %v", *api)
+	// 	debug("su %v", *api)
 	api.Stats.mu.Lock()
 	defer api.Stats.mu.Unlock()
 
@@ -81,11 +77,24 @@ func (api *apiService) StatsUpdate(s stats) {
 	return
 }
 
+func (api *apiService) Up(b bool) {
+	api.Stats.mu.Lock()
+	api.Stats.up = b
+	api.Stats.mu.Unlock()
+}
+
+func (api *apiService) Status() bool {
+	api.Stats.mu.Lock()
+	defer api.Stats.mu.Unlock()
+	return api.Stats.up
+
+}
+
 // Monitor Starts monitoring Stak
 func (api *apiService) Monitor(m *metrics) bool {
 	errChan := make(chan error, 10)
 	go func(err chan error, api *apiService) {
-		timeout := time.Duration(500 * time.Millisecond)
+		timeout := time.Duration(100 * time.Millisecond)
 		client := http.Client{
 			Timeout: timeout,
 		}
@@ -93,7 +102,10 @@ func (api *apiService) Monitor(m *metrics) bool {
 
 		for api.Signal != nil {
 			select {
-			case <-api.Signal:
+			case _, ok := <-api.Signal:
+				if !ok {
+					return
+				}
 				api.limit.Signal <- true
 				errChan <- fmt.Errorf("capiService.Monitor signal channel closed")
 				close(errChan)
@@ -106,7 +118,7 @@ func (api *apiService) Monitor(m *metrics) bool {
 						continue
 					}
 					errChan <- fmt.Errorf("error connecting: %v", err)
-					api.Up = false
+					api.Up(false)
 					debug("%v", err)
 					continue
 				}
@@ -133,13 +145,14 @@ func (api *apiService) Monitor(m *metrics) bool {
 				}
 
 				api.StatsUpdate(out)
-				api.Up = true
+				api.Up(true)
 
 				if met := out.Map(); err == nil {
 					hostname, herr := os.Hostname()
 					if herr != nil {
 						log.Errorf("failed to set hostname %v", herr)
 					}
+					delete(met, "Pool")
 					tags := map[string]string{"server": hostname}
 					err = m.Write("metrics", tags, met)
 					if err != nil {
@@ -171,18 +184,15 @@ func (api *apiService) showMonitor() {
 		select {
 		case <-limit.throttle:
 			a := api.StatsCopy()
-			if api.Up {
+			if api.Status() {
 				a.ConsoleDisplay()
 			}
-		case <-limit.Signal:
-			return
 		case _, ok := <-api.Signal:
 			if !ok {
-				if !limit.Stop() {
-					debug("limiter didn't stop")
-				}
 				return
 			}
+			limit.Stop()
+			return
 		}
 	}
 }
@@ -231,6 +241,7 @@ type stats struct {
 type rwStats struct {
 	mu   sync.RWMutex
 	data stats
+	up   bool
 }
 
 // Map returns a map version of stats data for metrics.go
@@ -253,16 +264,92 @@ func (stats *stats) Map() map[string]interface{} {
 	return m
 }
 func (stats *stats) ConsoleDisplay() {
+	// 	debug("%T %p %v", stats, stats, stats)
 	tm.Clear()
 	tm.MoveCursor(1, 1)
-	_, _ = tm.Println("Current Time:", time.Now().Format(time.RFC1123))
-	for _, v := range stats.Threads {
-		_, _ = tm.Printf("%s %+v\t", "\033[H\033[2J", v[0])
+	ct := fmt.Sprintf("Current Time: %v", time.Now().Format(time.RFC1123))
+	_, _ = tm.Println(tm.Color(ct, tm.GREEN))
+	_, _ = tm.Println()
 
+	// normalise fields for printing
+	if len(stats.Total) == 0 {
+		stats.Total = []float64{0}
 	}
 
+	if stats.connection.Pool == "" {
+		stats.connection.Pool = "Not Connected"
+	}
+
+	// setup Threads table
+	threads := tm.NewTable(0, 10, 5, ' ', 0)
+
+	// headers
+	_, _ = fmt.Fprintf(threads, "Thread\tHashrate\n")
+
+	// add threads
+	for i, v := range stats.Threads {
+		_, _ = fmt.Fprintf(threads, "%v\t%v\n", i, v[0])
+	}
+
+	// setup results table
+	_, _ = tm.Println(tm.Color("Results", tm.YELLOW))
+	ds := tm.NewTable(0, 5, 2, ' ', 0)
+	// _, _ = fmt.Fprintf(ds,	"Starting Hash Rate","$script:maxhash H/s")
+	// _, _ = fmt.Fprintf(ds,"Restart Hash Rate"="$script:rTarget H/s"
+
+	_, _ = fmt.Fprintln(ds, "Total H/R\t", stats.Total[0])
+	// _, _ = fmt.Fprintf(ds,"Minimum Hash Rate"="$script:minhashrate H/s"
+	// _, _ = fmt.Fprintf(ds,"Monitoring Uptime"="$tmRunTime"
+
+	_, _ = fmt.Fprintln(ds, "Pool\t", stats.connection.Pool)
+	_, _ = fmt.Fprintln(ds, "Uptime\t", stats.connection.Uptime)
+	_, _ = fmt.Fprintln(ds, "Difficulty\t", stats.DiffCurrent)
+	_, _ = fmt.Fprintln(ds, "Total Shares\t", stats.SharesTotal)
+	_, _ = fmt.Fprintln(ds, "Good Shares\t", stats.SharesGood)
+	// _, _ = fmt.Fprintf(ds,"Good Share Percent"
+	_, _ = fmt.Fprintln(ds, "Share Time\t", stats.AvgTime)
+	_, _ = fmt.Fprintln(ds)
+
+	_, _ = tm.Println(ds)
+	_, _ = tm.Println(threads)
 	tm.Flush() // Call it every time at the end of rendering
+	// fmt.Printf("%+v", stats)
 }
+
+/*
+Function refresh-Screen{
+			$tmRunTime=get-RunTime -sec ($runTime )
+			$tpUpTime=get-RunTime -sec ($script:UpTime )
+
+
+			if( ( $script:validSensorTime-eq'True' )-and($script:lastRoomTemp ) ){
+				$script:displayOutput2+=@{"Last Temp Reading"=@{"$( $script:lastRoomTemp.Time )"="$( $script:lastRoomTemp.$TEMPerSensorLocation ) C"}.ToDisplayString()}
+			}
+
+			if( $script:coins ){
+				$script:displayOutput2+=show-Coin-Info
+			}
+
+			if( $profitLiveCheckingEnabled-eq'True' ){
+				$now=(get-date )
+
+				$nextCheck=($script:profitCheckDateTime ).AddMinutes( $ProfitCheckMinutes )
+				$countdown=[math]::Round( ($nextCheck-$now ).TotalSeconds, 0 )
+				$tFormat=get-RunTime -sec ($countdown )
+				$script:displayOutput2+=@{"Last Profit check"=($script:profitCheckDateTime )}
+				$script:displayOutput2+=@{"Next Profit check"=$nextCheck}
+				$script:displayOutput2+=@{"Time Now"=$now}
+				$script:displayOutput2+=@{"Next Profit check due in "="$tFormat"}
+			}
+
+			Clear-Host
+			Write-Host -fore Green $script:displayOutput2.ToDisplayString()
+			if( $slackPeriodicReporting ){
+				display-to-slack
+			}
+		}
+
+*/
 
 func simApi(api *apiService, wg *sync.WaitGroup, startHashRate int, decayRate float64, decayTime time.Duration) {
 	ticker := time.NewTicker(decayTime)
@@ -284,8 +371,8 @@ func simApi(api *apiService, wg *sync.WaitGroup, startHashRate int, decayRate fl
 			st := api.StatsCopy()
 			// 	stat.Total = st.Total
 			// fmt.Printf("simApi    %p %v\n", &stat, stat)
-			fmt.Printf("simapi     %T %p %v\n", stat.Total[0], &stat.Total[0], stat.Total[0])
-			fmt.Printf("stp        %T %p %v\n", st.Total, &st.Total, st.Total)
+			// 		fmt.Printf("simapi     %T %p %v\n", stat.Total[0], &stat.Total[0], stat.Total[0])
+			// 		fmt.Printf("stp        %T %p %v\n", st.Total, &st.Total, st.Total)
 
 			if len(st.Total) == 0 {
 				st.Total = []float64{0.0}

@@ -2,18 +2,19 @@ package hashmonitor
 
 import (
 	"fmt"
+	"github.com/spf13/viper"
 	"time"
 )
 
 // var wg sync.WaitGroup
 
-func Mine() {
+func Mine(c *viper.Viper) {
 	err := ConfigLogger("logging.conf", false)
 	if err != nil {
 		fmt.Printf("failed to configure logging")
 	}
 
-	cards := NewCardData(cfg)
+	cards := NewCardData(c)
 	err = cards.GetStatus()
 	if err != nil {
 		fmt.Printf("%+v\n", err)
@@ -23,18 +24,22 @@ func Mine() {
 		fmt.Printf("error Resetting cards %v\n", err)
 	}
 
-	api := NewStatsService(cfg).(*apiService)
+	api := NewStatsService(c).(*apiService)
 	met := NewMetricsClient()
-	if err = met.Config(cfg); err != nil {
+	met.enabled = true
+	met.refresh = 10 * time.Second
+	met.db = "testMine"
+
+	if err = met.Config(c); err != nil {
 		log.Infof("failed to config metrics client")
 	}
-	met.refresh = 10 * time.Second
+
 	go met.backGroundWriter()
 
 	go api.Monitor(met)
 
 	m := NewMiner()
-	ctx, err := m.ConfigMiner(cfg)
+	ctx, err := m.ConfigMiner(c)
 	if err != nil {
 		log.Errorf("Failed configuring miner: %v\n", err)
 	}
@@ -43,13 +48,15 @@ func Mine() {
 	if err != nil {
 		log.Errorf("failed to start mining %v", err)
 	}
-	// defer func(){
-	//
-	// }()
+	defer func(m *miner) {
+		if err = m.StopMining(); err != nil {
+			log.Errorf("failed to stop miner %v\n", err)
+		}
+	}(m)
 
 	go m.ConsoleMetrics(met)
 
-	err = api.startingHash(300, 17*time.Second)
+	err = api.startingHash(200, 17*time.Second)
 	if err != nil {
 		log.Errorf("currenthash %v", err)
 	}
@@ -58,13 +65,11 @@ func Mine() {
 	if err != nil {
 		log.Errorf("currenthash %v", err)
 	}
-	if err = m.StopMining(); err != nil {
-		log.Errorf("failed to stop miner %v\n", err)
-	}
+	api.stopMonitor(met)
+
 	// miningTime := 1 * time.Minute
 	// time.Sleep(miningTime)
 
-	api.stopMonitor(met)
 }
 
 // func profitMine() {

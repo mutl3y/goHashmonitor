@@ -18,6 +18,14 @@ type metrics struct {
 	pointsQueue chan inf.Point
 	// done        chan bool
 	enabled bool
+	mu      sync.RWMutex
+}
+
+func (m *metrics) Enabled() bool {
+	m.mu.RLock()
+	result := m.enabled
+	m.mu.RUnlock()
+	return result
 }
 
 type Metrics interface {
@@ -43,6 +51,9 @@ func NewMetricsClient() *metrics {
 // "Influx.DB" string
 // "Influx.FlushSec" time.duration
 func (m *metrics) Config(c *viper.Viper) error {
+	debug("config data %v", c.GetString("Influx.DB"))
+
+	// debug("config data %T\n%v\n%p\n", cfg, cfg, cfg)
 	if !c.GetBool("Influx.Enabled") {
 		return nil
 	}
@@ -84,7 +95,7 @@ func (m *metrics) Config(c *viper.Viper) error {
 
 	m.db = c.GetString("Influx.DB")
 	if m.db == "" {
-		log.Infof("failed to set Influx DB")
+		debug("failed to set Influx DB")
 		m.db = "goHashmonitor"
 	}
 
@@ -114,7 +125,7 @@ func (m *metrics) Query(c, d string) (string, error) {
 }
 
 func (m *metrics) Write(measurment string, tags map[string]string, fields map[string]interface{}) error {
-	if !m.enabled {
+	if !m.Enabled() {
 		return nil
 	}
 	p := inf.Point{
@@ -122,7 +133,9 @@ func (m *metrics) Write(measurment string, tags map[string]string, fields map[st
 		Tags:        tags,
 		Fields:      fields,
 		Time:        time.Now(),
+		Raw:         "",
 	}
+	// Valid values for Precision are n, u, ms, s, m, and h
 
 	select {
 	case <-time.After(time.Millisecond * 100):
@@ -131,7 +144,10 @@ func (m *metrics) Write(measurment string, tags map[string]string, fields map[st
 
 		return errors.New("stats queue full, discarding")
 	case m.pointsQueue <- p:
-
+		// debug("measurement %v", measurment)
+		// debug("tags %v", tags)
+		// debug("fields %v", fields)
+		//
 		// debug("wrote to queue")
 	}
 	return nil
@@ -139,7 +155,7 @@ func (m *metrics) Write(measurment string, tags map[string]string, fields map[st
 
 func (m *metrics) checkDB() error {
 	// turn call into a no op if not enabled
-	if !m.enabled || m == nil {
+	if !m.Enabled() || m == nil {
 		debug("metrics disabled")
 		return nil
 	}
@@ -180,9 +196,9 @@ func afterTime(t time.Time) <-chan time.Time {
 }
 
 func (m *metrics) backGroundWriter() {
-
+	log.Infof("backGroundWriter db %v", m.db)
 	// turn call into a no op if not enabled
-	if !m.enabled {
+	if !m.Enabled() {
 		fmt.Printf("stats disabled\n")
 		return
 	}
@@ -216,6 +232,7 @@ func (m *metrics) backGroundWriter() {
 				if err != nil {
 					log.Errorf("backGroundWriter: %v", err)
 				}
+
 				if Debug {
 					debug("client write: %v\n", &p)
 					debug("response %v\n", res)
@@ -254,6 +271,9 @@ func (m *metrics) backGroundWriter() {
 func (m *metrics) Stop() {
 	// debug("%v %T", &m.done, &m.done)
 	// m.done <- true
+	m.mu.Lock()
+	m.enabled = false
+	m.mu.Unlock()
 	close(m.pointsQueue)
 	// close(m.done)
 }

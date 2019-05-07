@@ -172,3 +172,27 @@ func Test_simApi(t *testing.T) {
 
 	})
 }
+
+func Test_stats_ConsoleDisplay(t *testing.T) {
+	tests := []struct {
+		name string
+	}{
+		{""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stats := &stats{}
+			stats.Threads = [][]float64{
+				{124},
+				{146},
+				{197},
+				{183},
+				{161},
+				{164},
+				{4000},
+				{12000},
+			}
+			stats.ConsoleDisplay()
+		})
+	}
+}

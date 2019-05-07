@@ -66,7 +66,7 @@ func Test_stats_currentHash(t *testing.T) {
 	tCfg := DefaultConfig()
 	tCfg.Set("Influx.DB", "serviceMonitor")
 	tCfg.Set("Influx.Enabled", true)
-	api := NewStatsService(cfg).(*apiService)
+	api := NewStatsService(tCfg).(*apiService)
 	tests := []struct {
 		name                      string
 		hash, hashrate, maxErrors int

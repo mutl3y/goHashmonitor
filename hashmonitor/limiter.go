@@ -30,7 +30,7 @@ func limitClock(limit *simpleRateLimit) {
 	for t := range tick.C {
 		select {
 		case <-limit.Signal:
-			close(limit.throttle)
+			// close(limit.throttle)
 			return
 
 		case limit.throttle <- t:
@@ -42,7 +42,7 @@ func limitClock(limit *simpleRateLimit) {
 
 func (limit *simpleRateLimit) Stop() bool {
 	limit.Signal <- true
-	log.Debugf("Stopping limit Service")
+	debug("Stopping limit Service")
 	return true
 }
 

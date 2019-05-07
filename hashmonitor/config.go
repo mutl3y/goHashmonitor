@@ -10,7 +10,8 @@ import (
 
 var pathSep = string(os.PathSeparator)
 var root string
-var cfg, _ = Config()
+
+// var cfg, _ = Config()
 
 func init() {
 	cwd, err := os.Getwd()
@@ -25,7 +26,6 @@ func init() {
 }
 
 func Config() (*viper.Viper, error) {
-
 	c := DefaultConfig()
 	f := c.ConfigFileUsed()
 	err := c.MergeInConfig()
@@ -65,7 +65,7 @@ func DefaultConfig() *viper.Viper {
 	c.SetDefault("Core.Stak.Args", []string{"--noNVIDIA"})
 	c.SetDefault("Core.Stak.Dir", root+"xmr-stak")
 	c.SetDefault("Core.Stak.Exe", "./xmr-stak.exe")
-	c.SetDefault("Core.Stak.Ip", "192.168.0.28")
+	c.SetDefault("Core.Stak.Ip", "127.0.0.1")
 	c.SetDefault("Core.Stak.Port", 420)
 	c.SetDefault("Core.Stak.Refresh_MS", time.Millisecond*500)
 	c.SetDefault("Core.Stak.Timeout", 2)
@@ -86,9 +86,9 @@ func DefaultConfig() *viper.Viper {
 
 	c.SetDefault("Influx.Enabled", false)
 	c.SetDefault("Influx.IP", "192.168.0.29")
-	c.SetDefault("influx.DB", "hashmonitor")
+	c.SetDefault("influx.DB", "goHashmonitor")
 	c.SetDefault("Influx.Port", 8086)
-	c.SetDefault("influx.User", nil)
+	c.SetDefault("Influx.User", nil)
 	c.SetDefault("Influx.Pw", nil)
 	c.SetDefault("Influx.FlushSec", 10*time.Second)
 

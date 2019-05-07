@@ -134,6 +134,10 @@ func (ms *miner) ConsoleMetrics(met *metrics) {
 
 		}
 		if len(m) > 0 {
+			if m["TAG"] != nil {
+				tags["type"] = fmt.Sprintf("%v", m["TAG"])
+				delete(m, "TAG")
+			}
 			if err := met.Write("consoleMetrics", tags, m); err != nil {
 				debug("console metrics error %v", err)
 			}
@@ -177,7 +181,7 @@ func conParse(b []byte) (m map[string]interface{}, err error) {
 		case "OpenCL Inter":
 			md, err := interleaveFilter(s[18:])
 			if err != nil {
-				log.Errorf("conParse decoding error %v\n", err)
+				log.Errorf("conParse interleave decoding error %v\n", err)
 
 			}
 			for k, v := range md {
@@ -185,13 +189,25 @@ func conParse(b []byte) (m map[string]interface{}, err error) {
 			}
 
 		case "OpenCL devic":
-			debug("OpenCL device %v\n", s)
-		default:
-			log.Debugf("conParse unparsed openCl %v\n", s)
+			debug("OpenCL device %v", s)
 
+		default:
+			if strings.Contains(s, "auto-tune validate ") {
+				md, err := autotuneFilter(s)
+				if err != nil {
+					log.Errorf("conParse autotune decoding error %v\n", err)
+
+				}
+				for k, v := range md {
+					m[k] = v
+				}
+			} else {
+
+				log.Debugf("conParse unparsed openCl %v\n", s)
+			}
 		}
 	case "Mini":
-		debug("algorithm \t%v\n", s[13:])
+		debug("algorithm \t%v", s[13:])
 
 	// discarded and non printed below
 	case "Devi": // fmt.Printf("device \t\t%v\n", s)
@@ -254,6 +270,50 @@ func interleaveFilter(s string) (m map[string]interface{}, err error) {
 			return m, fmt.Errorf("interleave %v", err)
 		}
 	}
+	m["TAG"] = "interleave_event"
+	return m, nil
+
+}
+
+func autotuneFilter(s string) (m map[string]interface{}, err error) {
+	// `<gpu id>|<thread id on the gpu>: <last delay>/<average calculation per hash bunch> ms - <interleave value>`
+	m = make(map[string]interface{})
+
+	fields := strings.Fields(s)
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		err = fmt.Errorf("dsddsdfsd")
+	// 	}
+	// }()
+
+	gpuThread := strings.Split(fields[1][:len(fields[1])-1], "|")
+	fmt.Printf("%+v", gpuThread)
+	if m["gpu"], err = strconv.ParseInt(gpuThread[0], 0, 64); err != nil {
+		return m, fmt.Errorf("gpu %v", err)
+	}
+
+	if m["thread"], err = strconv.ParseInt(gpuThread[1], 0, 64); err != nil {
+		return m, fmt.Errorf("thread %v", err)
+	}
+
+	// extract last and average
+	intPair := strings.Split(fields[5], "|")
+	if m["newIntensity"], err = strconv.ParseInt(intPair[0], 0, 64); err != nil {
+		return m, fmt.Errorf("new %v", err)
+	}
+	if m["oldIntensity"], err = strconv.ParseInt(intPair[1], 0, 64); err != nil {
+		return m, fmt.Errorf("old %v", err)
+	}
+	m["TAG"] = "autotune_event"
+	// if m["average"], err = strconv.ParseFloat(laPair[1], 64); err != nil {
+	// 	return m, fmt.Errorf("average %v", err)
+	// }
+	//
+	// if len(fields) >= 5 {
+	// 	if m["interleave"], err = strconv.ParseFloat(fields[4], 64); err != nil {
+	// 		return m, fmt.Errorf("interleave %v", err)
+	// 	}
+	// 	}
 
 	return m, nil
 
@@ -269,7 +329,7 @@ func (ms *miner) StopMining() error {
 			return err
 		}
 	}
-	exe := cfg.GetString("Core.Stak.Exe")
+	exe := ms.config.exe
 	if exe == "" {
 		return fmt.Errorf("exe not specified")
 	}

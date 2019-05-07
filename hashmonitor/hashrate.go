@@ -14,11 +14,7 @@ func (api *apiService) minHash(min int) error {
 		api.Stats.data.Total = []float64{0.0}
 		api.Stats.mu.Unlock()
 		return nil
-
 	}
-
-	// api.RUnlock()
-	fmt.Printf("min hash   %T %p %v\n", a.Total[0], &a.Total[0], a.Total[0])
 
 	if a.Total[0] < float64(min) {
 		return fmt.Errorf("minimum hashrate not met")
@@ -42,7 +38,7 @@ func (api *apiService) startingHash(min int, stableTime time.Duration) error {
 	ticker := time.NewTicker(time.Second)
 	timeout := time.Now().Add(stableTime)
 	defer ticker.Stop()
-	fmt.Println("Waiting for hashrate to stabalize ")
+	debug("Waiting for hashrate to stabalize ")
 
 	for {
 		select {
@@ -54,8 +50,9 @@ func (api *apiService) startingHash(min int, stableTime time.Duration) error {
 			if len(s.Total) != 0 {
 				hr = s.Total[0]
 			}
-
+			tm.Clear()
 			_, _ = tm.Printf("\r%v H/R %v", stableTime.Round(time.Second), hr)
+			tm.Flush()
 			stableTime -= time.Second
 		}
 	}
@@ -65,7 +62,7 @@ func (api *apiService) startingHash(min int, stableTime time.Duration) error {
 func (api *apiService) currentHash(hash, maxErrors int, refresh time.Duration) error {
 	var failures int
 	ticker := time.NewTicker(refresh)
-	timeout := time.Now().Add(time.Second * 5)
+	timeout := time.Now().Add(time.Minute * 10)
 	// refresh := time.Now().Add(stableTime)
 	defer ticker.Stop()
 
@@ -92,11 +89,12 @@ func (api *apiService) currentHash(hash, maxErrors int, refresh time.Duration) e
 
 			// todo
 			stat := api.StatsCopy()
+
 			// fmt.Printf("currentHash %p %v\n", &stat, stat)
 
-			// 	if len(stat.Total) < 0 {
-			debug("\rH/R %v", math.Round(stat.Total[0]))
-			// 	}
+			if len(stat.Total) < 0 {
+				debug("\rH/R %v", math.Round(stat.Total[0]))
+			}
 		}
 	}
 

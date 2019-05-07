@@ -1,4 +1,4 @@
-xmr-stak 2.7.1 7d6cd31b1
+xmr-stak 2.10.2 1fa46267b
 
 Brought to you by fireice_uk and psychocrypt under GPLv3.
 Based on CPU mining code by wolf9466 (heavily optimized by fireice_uk).
@@ -26,21 +26,33 @@ Upcoming xmr-stak-gui is sponsored by:
 This currency is a way for us to implement the ideas that we were unable to in
 Monero. See https://github.com/fireice-uk/cryptonote-speedup-demo for details.
 -------------------------------------------------------------------
-[2019-02-27 21:00:06] : Mining coin: cryptonight_heavy
-[2019-02-27 21:00:06] : Compiling code and initializing GPUs. This will take a while...
-[2019-02-27 21:00:07] : Device 0 work size 8 / 32.
-[2019-02-27 21:00:07] : OpenCL device 0 - Load precompiled code from file d:\Users\Mark\AppData\Local/.openclcache/4412997df6c14125f6d57266ae03d540d7051f4013f879abd17948950570111a.openclbin
-[2019-02-27 21:00:07] : Device 0 work size 8 / 32.
-[2019-02-27 21:00:07] : OpenCL device 0 - Load precompiled code from file d:\Users\Mark\AppData\Local/.openclcache/4412997df6c14125f6d57266ae03d540d7051f4013f879abd17948950570111a.openclbin
-[2019-02-27 21:00:07] : Starting AMD GPU (OpenCL) thread 0, no affinity.
-[2019-02-27 21:00:07] : Starting AMD GPU (OpenCL) thread 1, no affinity.
-[2019-02-27 21:00:07] : WARNING: backend CPU disabled.
-[2019-02-27 21:00:07] : Fast-connecting to loki.ingest.cryptoknight.cc:7732 pool ...
-[2019-02-27 21:00:07] : Pool loki.ingest.cryptoknight.cc:7732 connected. Logging in...
-[2019-02-27 21:00:07] : Difficulty changed. Now: 150000.
-[2019-02-27 21:00:07] : Pool logged in.
-[2019-02-27 21:00:15] : OpenCL Interleave 0|0: 297/3197.40 ms - 20.1
-[2019-02-27 21:00:21] : OpenCL Interleave 0|0: 143/3694.98 ms - 20.1
-[2019-02-27 21:00:29] : OpenCL Interleave 0|0: 740/4670.82 ms - 20.2
-[2019-02-27 21:00:40] : OpenCL Interleave 0|0: 942/5859.23 ms - 20.2
-[2019-02-27 21:00:53] : OpenCL Interleave 0|0: 1298/7132.74 ms - 20.2
+[2019-05-07 19:12:11] : Mining coin: cryptonight_v8_double
+[2019-05-07 19:12:11] : Compiling code and initializing GPUs. This will take a while...
+[2019-05-07 19:12:11] : Device 0 work size 8 / 16.
+[2019-05-07 19:12:12] : OpenCL device 0 - Load precompiled code from file C:\Users\mutle\AppData\Local/.openclcache/4f9d82c7d2aee3f1771ba65ed77acf65eb8d89f54283c823d69d46477052381e.openclbin
+[2019-05-07 19:12:12] : OpenCL device 0 - Load precompiled code from file C:\Users\mutle\AppData\Local/.openclcache/5ca7a665069052c5a7c558d6e9c5b32c22c928a446a0c5cb86717d5f4cb723de.openclbin
+[2019-05-07 19:12:12] : OpenCL device 0 - Load precompiled code from file C:\Users\mutle\AppData\Local/.openclcache/4f9d82c7d2aee3f1771ba65ed77acf65eb8d89f54283c823d69d46477052381e.openclbin
+[2019-05-07 19:12:12] : OpenCL device 0 - Load precompiled code from file C:\Users\mutle\AppData\Local/.openclcache/5ca7a665069052c5a7c558d6e9c5b32c22c928a446a0c5cb86717d5f4cb723de.openclbin
+[2019-05-07 19:12:12] : Device 0 work size 8 / 16.
+[2019-05-07 19:12:12] : OpenCL device 0 - Load precompiled code from file C:\Users\mutle\AppData\Local/.openclcache/4f9d82c7d2aee3f1771ba65ed77acf65eb8d89f54283c823d69d46477052381e.openclbin
+[2019-05-07 19:12:12] : OpenCL device 0 - Load precompiled code from file C:\Users\mutle\AppData\Local/.openclcache/5ca7a665069052c5a7c558d6e9c5b32c22c928a446a0c5cb86717d5f4cb723de.openclbin
+[2019-05-07 19:12:12] : OpenCL device 0 - Load precompiled code from file C:\Users\mutle\AppData\Local/.openclcache/4f9d82c7d2aee3f1771ba65ed77acf65eb8d89f54283c823d69d46477052381e.openclbin
+[2019-05-07 19:12:12] : OpenCL device 0 - Load precompiled code from file C:\Users\mutle\AppData\Local/.openclcache/5ca7a665069052c5a7c558d6e9c5b32c22c928a446a0c5cb86717d5f4cb723de.openclbin
+[2019-05-07 19:12:12] : Starting AMD GPU (OpenCL) thread 0, no affinity.
+[2019-05-07 19:12:12] : Starting AMD GPU (OpenCL) thread 1, no affinity.
+[2019-05-07 19:12:12] : NVIDIA: try to load library 'xmrstak_cuda_backend_cuda10_0'
+WARNING: NVIDIA cannot load backend library: xmrstak_cuda_backend_cuda10_0.dll
+[2019-05-07 19:12:12] : NVIDIA: try to load library 'xmrstak_cuda_backend_cuda9_2'
+WARNING: NVIDIA cannot load backend library: xmrstak_cuda_backend_cuda9_2.dll
+[2019-05-07 19:12:12] : NVIDIA: try to load library 'xmrstak_cuda_backend'
+WARNING: NVIDIA cannot load backend library: xmrstak_cuda_backend.dll
+[2019-05-07 19:12:12] : WARNING: backend NVIDIA disabled.
+[2019-05-07 19:12:12] : WARNING: backend CPU disabled.
+[2019-05-07 19:12:12] : Fast-connecting to minexcash.com:7777 pool ...
+[2019-05-07 19:12:12] : Pool minexcash.com:7777 connected. Logging in...
+[2019-05-07 19:12:13] : Difficulty changed. Now: 100001.
+[2019-05-07 19:12:13] : Pool logged in.
+[2019-05-07 19:12:14] : New block detected.
+[2019-05-07 19:12:16] : OpenCL Interleave 0|1: 474/2855.70 ms - 40.0
+[2019-05-07 19:12:44] : OpenCL 0|0: auto-tune validate intensity 520|512
+[2019-05-07 19:12:45] : OpenCL 0|1: auto-tune validate intensity 520|512
