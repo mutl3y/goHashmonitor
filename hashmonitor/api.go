@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var safeFlush = &sync.Mutex{}
+
 // ApiService implementation interface
 type ApiService interface {
 	Monitor(met *metrics) bool
@@ -58,12 +60,12 @@ func (api *apiService) StatsCopy() stats {
 
 	api.Stats.mu.RLock()
 
-	stat := stats{}
-	stat = api.Stats.data
+	stat := &stats{}
+	*stat = api.Stats.data
+	// fmt.Printf("api %T %p %v\n", api.Stats.data.Total, &api.Stats.data.Total, api.Stats.data.Total)
 	// fmt.Printf("statscopy %T %p %v\n", stat.Total, &stat.Total, stat.Total)
-
 	api.Stats.mu.RUnlock()
-	return stat
+	return *stat
 }
 
 func (api *apiService) StatsUpdate(s stats) {
@@ -119,7 +121,7 @@ func (api *apiService) Monitor(m *metrics) bool {
 					}
 					errChan <- fmt.Errorf("error connecting: %v", err)
 					api.Up(false)
-					debug("%v", err)
+					debug("monitor() %v", err)
 					continue
 				}
 				if res.StatusCode != 200 {
@@ -146,13 +148,19 @@ func (api *apiService) Monitor(m *metrics) bool {
 
 				api.StatsUpdate(out)
 				api.Up(true)
+				hostname, herr := os.Hostname()
+				if herr != nil {
+					log.Errorf("failed to set hostname %v", herr)
+				}
 
+				// general stats
 				if met := out.Map(); err == nil {
-					hostname, herr := os.Hostname()
-					if herr != nil {
-						log.Errorf("failed to set hostname %v", herr)
+					// cleanup output, drop port
+					poolElement := met["Pool"].(string)
+					if strings.Contains(poolElement, ":") {
+						met["Pool"] = strings.Split(poolElement, ":")[0]
 					}
-					delete(met, "Pool")
+
 					tags := map[string]string{"server": hostname}
 					err = m.Write("metrics", tags, met)
 					if err != nil {
@@ -160,8 +168,23 @@ func (api *apiService) Monitor(m *metrics) bool {
 					}
 				}
 
+				// hashrate tagged by thread id
+				if met := out.threadMapSlice(); len(met) != 0 {
+					for _, v := range met {
+						tags := map[string]string{"server": hostname}
+						if v["thread"] != nil {
+							tags["thread"] = fmt.Sprintf("%v", v["thread"])
+							delete(v, "thread")
+						}
+						err = m.Write("metrics", tags, v)
+						if err != nil {
+							debug("failed to write to influx %v", err)
+						}
+					}
+				}
+
 			case outerr := <-errChan:
-				log.Errorf("%v", outerr)
+				debug("%v", outerr)
 			}
 		}
 	}(errChan, api)
@@ -170,14 +193,14 @@ func (api *apiService) Monitor(m *metrics) bool {
 }
 
 func (api *apiService) stopMonitor(m *metrics) bool {
-	api.Signal <- true
 	debug("stopping Stats Service")
+	api.Signal <- true
 	m.Stop()
 	return true
 }
 
 func (api *apiService) showMonitor() {
-	limit := newLimiter(500 * time.Millisecond)
+	limit := newLimiter(1005 * time.Millisecond)
 	go limitClock(limit)
 
 	for {
@@ -247,6 +270,9 @@ type rwStats struct {
 // Map returns a map version of stats data for metrics.go
 // non concurrent usage
 func (stats *stats) Map() map[string]interface{} {
+	if len(stats.Total) == 0 {
+		stats.Total = []float64{0}
+	}
 	m := map[string]interface{}{
 		"DiffCurrent": stats.DiffCurrent,
 		"SharesGood":  stats.SharesGood,
@@ -256,13 +282,26 @@ func (stats *stats) Map() map[string]interface{} {
 		"Pool":        stats.Pool,
 		"Uptime":      stats.Uptime,
 		"Ping":        stats.Ping,
+		"TotalHR":     stats.Total[0],
 	}
 
 	for k, v := range stats.Threads {
-		m[fmt.Sprintf("Thread_%v", k)] = v[0]
+		m[fmt.Sprintf("Thread.%v", k)] = v[0]
 	}
 	return m
 }
+
+// Map returns a map version of stats data for metrics.go
+// non concurrent usage
+func (stats *stats) threadMapSlice() []map[string]interface{} {
+	ms := make([]map[string]interface{}, 0, 10)
+	for k, v := range stats.Threads {
+		ms = append(ms, map[string]interface{}{"hashrate": v[0], "thread": k})
+
+	}
+	return ms
+}
+
 func (stats *stats) ConsoleDisplay() {
 	// 	debug("%T %p %v", stats, stats, stats)
 	tm.Clear()
@@ -312,7 +351,7 @@ func (stats *stats) ConsoleDisplay() {
 
 	_, _ = tm.Println(ds)
 	_, _ = tm.Println(threads)
-	tm.Flush() // Call it every time at the end of rendering
+	TmFlush() // Call it every time at the end of rendering
 	// fmt.Printf("%+v", stats)
 }
 
@@ -351,16 +390,21 @@ Function refresh-Screen{
 
 */
 
+func TmFlush() {
+	safeFlush.Lock()
+	tm.Flush()
+	safeFlush.Unlock()
+}
+
 func simApi(api *apiService, wg *sync.WaitGroup, startHashRate int, decayRate float64, decayTime time.Duration) {
 	ticker := time.NewTicker(decayTime)
 	defer ticker.Stop()
 	timeout := time.Now().Add(time.Second * 30)
-	// refresh := time.Now().Add(stableTime)
-	// api.Lock()
-	stat := stats{}
-	stat.Total = []float64{float64(startHashRate)}
 
-	api.StatsUpdate(stat)
+	stat := rwStats{}
+	stat.data.Total = []float64{float64(startHashRate)}
+
+	api.StatsUpdate(stat.data)
 	// api.Unlock()
 	wg.Done()
 	for {
@@ -377,10 +421,11 @@ func simApi(api *apiService, wg *sync.WaitGroup, startHashRate int, decayRate fl
 			if len(st.Total) == 0 {
 				st.Total = []float64{0.0}
 			}
-
-			stat.Total[0] = st.Total[0] / decayRate
-			api.StatsUpdate(stat)
-			if stat.Total[0] <= 10 {
+			stat.mu.Lock()
+			stat.data.Total[0] = st.Total[0] / decayRate
+			stat.mu.Unlock()
+			api.StatsUpdate(stat.data)
+			if stat.data.Total[0] <= 10 {
 				return
 			}
 		}

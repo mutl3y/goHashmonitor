@@ -17,20 +17,22 @@ import (
 // 	}
 // }
 
+type GpuThreadsConf struct {
+	Index        int  `json:"index"`
+	Intensity    int  `json:"intensity"`
+	Worksize     int  `json:"worksize"`
+	AffineToCPU  bool `json:"affine_to_cpu"`
+	StridedIndex int  `json:"strided_index"`
+	MemChunk     int  `json:"mem_chunk"`
+	Unroll       int  `json:"unroll"`
+	CompMode     bool `json:"comp_mode"`
+	Interleave   int  `json:"interleave"`
+}
+
 type AmdConf struct {
-	GpuThreadsConf []struct {
-		Index        int  `json:"index"`
-		Intensity    int  `json:"Intensity"`
-		Worksize     int  `json:"worksize"`
-		AffineToCPU  bool `json:"affine_to_cpu"`
-		StridedIndex int  `json:"strided_index"`
-		MemChunk     int  `json:"mem_chunk"`
-		Unroll       int  `json:"unroll"`
-		CompMode     bool `json:"comp_mode"`
-		Interleave   int  `json:"interleave"`
-	} `json:"gpu_threads_conf"`
-	AutoTune      int `json:"auto_tune"`
-	PlatformIndex int `json:"platform_index"`
+	GpuThreadsConf []GpuThreadsConf `json:"gpu_threads_conf"`
+	AutoTune       int              `json:"auto_tune"`
+	PlatformIndex  int              `json:"platform_index"`
 }
 
 func NewAmdConfig() AmdConf {
@@ -121,5 +123,42 @@ func (mc *AmdConf) amdIntTemplate(interleave int, dir string) (str string, err e
 		return "", fmt.Errorf("amdIntTemplate_write %v", err)
 	}
 
+	return
+}
+
+func (mc *AmdConf) Write(rwc io.WriteCloser) (err error) {
+	jsTmp, err := json.Marshal(mc)
+	stakStyle := string(jsTmp)
+	if err != nil {
+		return
+	}
+
+	// remove curly's
+	stakStyle = stakStyle[:len(stakStyle)-1]
+	stakStyle = stakStyle[1:]
+	stakStyle += ","
+
+	if _, err = rwc.Write([]byte(stakStyle)); err != nil {
+		log.Fatalf("failed to write amd.txt")
+	}
+
+	return rwc.Close()
+
+}
+
+func (mc *AmdConf) Map() (m map[string]interface{}) {
+	m = make(map[string]interface{})
+	m["autoTune"] = mc.AutoTune
+	m["platformIndex"] = mc.PlatformIndex
+	for k, v := range mc.GpuThreadsConf {
+		id := fmt.Sprintf("gpu_%v.thread_%v.", v.Index, k)
+		m[id+"Intensity"] = v.Intensity
+		m[id+"Worksize"] = v.Worksize
+		m[id+"StridedIndex"] = v.StridedIndex
+		m[id+"MemChunk"] = v.MemChunk
+		m[id+"Unroll"] = v.Unroll
+		m[id+"Interleave"] = v.Interleave
+
+	}
 	return
 }

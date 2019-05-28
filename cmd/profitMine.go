@@ -33,7 +33,7 @@ This will start a mining session with profit mining features enabled if configur
 }
 
 func init() {
-	rootCmd.AddCommand(profitMineCmd)
+	// rootCmd.AddCommand(profitMineCmd)
 
 	// Here you will define your flags and configuration settings.
 

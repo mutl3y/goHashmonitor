@@ -47,7 +47,7 @@ func Test_ConfigMiner(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := tt.ms.ConfigMiner(tt.cfg)
+			err := tt.ms.ConfigMiner(tt.cfg)
 			if err != nil {
 				if err.Error() != tt.errorMessage {
 					t.Fatalf("%v\n want: %v\n got: %v ", tt.name, tt.errorMessage, err)
@@ -66,11 +66,11 @@ func TestMiner_StartMining_StopMining(t *testing.T) {
 	}
 
 	m := NewMiner()
-	ctx, err := m.ConfigMiner(c)
+	err = m.ConfigMiner(c)
 	if err != nil {
 		t.Fatalf("Failed configuring miner: %v", err)
 	}
-	err = m.StartMining(ctx)
+	err = m.StartMining()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -96,7 +96,7 @@ func TestMiner_ConsoleMetrics(t *testing.T) {
 	tCfg.Set("Core.Stak.Exe", "./xmr-stak.exe")
 
 	m := NewMiner()
-	_, err := m.ConfigMiner(tCfg)
+	err := m.ConfigMiner(tCfg)
 	if err != nil {
 		t.Fatalf("Failed configuring miner: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestMiner_ConsoleMetrics(t *testing.T) {
 
 func TestInterleaveFilter(t *testing.T) {
 	// 	d := int64(155332121)
-	if err := ConfigLogger("logging.conf", false); err != nil {
+	if err := ConfigLogger("logging.amdConf", false); err != nil {
 		t.Fatal("failed configuring logger")
 	}
 
@@ -148,7 +148,7 @@ func TestInterleaveFilter(t *testing.T) {
 }
 func TestAutotuneFilter(t *testing.T) {
 	// 	d := int64(155332121)
-	if err := ConfigLogger("logging.conf", false); err != nil {
+	if err := ConfigLogger("logging.amdConf", false); err != nil {
 		t.Fatal("failed configuring logger")
 	}
 

@@ -15,12 +15,11 @@
 package cmd
 
 import (
+	"goHashmonitor/hashmonitor"
 	"log"
 	"os"
 
 	"github.com/spf13/cobra"
-
-	"goHashmonitor/hashmonitor"
 )
 
 // configCmd represents the config command

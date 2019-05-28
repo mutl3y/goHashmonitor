@@ -43,6 +43,7 @@ func ConfigLogger(fn string, force bool) (err error) {
 		return errors.Wrapf(err, "failed to find log config '%v' in %v\n", c, fn)
 
 	}
+
 	return errors.Wrapf(err, "%v", mate)
 }
 
@@ -81,7 +82,7 @@ hooks{
 		}
 	slack {
         url      = "https://hooks.slack.com/services/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"
-        levels   = ["debug", "error", "info", "warn"]
+        levels   = ["error", "info", "warn"]
         channel  = ""
         emoji    = ":rag:"
         username = "logrus_mate"

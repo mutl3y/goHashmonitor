@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"goHashmonitor/hashmonitor"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -25,31 +26,94 @@ var lower, upper int
 
 // InterleaveCmd represents the tuneInterleave command
 var InterleaveCmd = &cobra.Command{
-	Use:   "tuneInterleave",
+	Use:   "Interleave",
 	Short: "Tune interleave",
-	Long: `This will backup the current gpu config file
-it will then iterate over the range provided by upper --> lower 
-performing a 60s benchmark that logs hashrate and interleave messages per second
+	Long: `This will mine for given time cyling through the provided interleave range
+uses intensity and worksize from amd.conf soo make sure these are good too start with
+review results in Grafana to find the perfect value
 
-You should find stable settings for intensity etc before attempting to tune interleave
-
-If your miner is not stable for at least 5 minutes you should not run this...
-`,
+If your miner is not stable for at least 5 minutes you should not run this...`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("tuneInterleave called")
-		cmd.Flags().IntP("lower", "l", 0, "Lowest interleave setting")
-		cmd.Flags().IntP("upper", "u", 50, "Highest interleave setting")
-		cmd.Flags().IntP("benchSec", "b", 60, "How long to run benchmark in seconds")
-		lower, _ = cmd.Flags().GetInt("lower")
-		upper, _ = cmd.Flags().GetInt("upper")
-		fmt.Printf("%v %v %s", lower, upper, time.Now())
+
+		c, err := hashmonitor.Config()
+		if err != nil {
+			return
+		}
+
+		var (
+			is, ie, ii int
+		)
+		flags := cmd.Flags()
+		i, err := flags.GetIntSlice("interleave")
+
+		is = i[0]
+		ie = i[1]
+		ii = i[2]
+
+		c.Set("Influx.Enabled", true)
+
+		err = c.BindPFlag("Influx.IP", cmd.Flags().Lookup("influxIP"))
+		if err != nil {
+
+		}
+
+		err = c.BindPFlag("Influx.Port", cmd.Flags().Lookup("influxPort"))
+		if err != nil {
+
+		}
+
+		err = c.BindPFlag("Influx.DB", cmd.Flags().Lookup("influxDB"))
+		if err != nil {
+
+		}
+		err = c.BindPFlag("Core.Stak.Dir", cmd.Flags().Lookup("stakdirectory"))
+		if err != nil {
+
+		}
+		reset, err := flags.GetBool("reset")
+		if err != nil {
+
+		}
+
+		logging, err := flags.GetBool("logging")
+		if err != nil {
+
+		}
+		if logging {
+			fmt.Println("enabling logging")
+			err := hashmonitor.ConfigLogger("logging.conf", false)
+			if err != nil {
+				fmt.Println("failed to configure logging %v", err)
+			}
+		}
+
+		runtime, err := flags.GetDuration("runtime")
+		if err != nil {
+
+		}
+
+		session := hashmonitor.InterleaveRun{
+			Interleave: hashmonitor.IntRunArgs{Start: is, Stop: ie, Inc: ii},
+			Runtime:    runtime,
+			ResetCards: reset}
+
+		err = hashmonitor.InterleaveSession(c, session)
+
+		fmt.Printf("%v", err)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(InterleaveCmd)
 
-	// Here you will define your flags and configuration settings.
+	InterleaveCmd.Flags().String("influxIP", "", "influx, not needed if correct in config file")
+	InterleaveCmd.Flags().Int("influxPort", 0, "influx port, not needed if correct in config file")
+	InterleaveCmd.Flags().String("influxDB", "", "influx DB, not needed if correct in config file")
+	InterleaveCmd.Flags().BoolP("reset", "r", false, "reset cards before each run")
+	InterleaveCmd.Flags().DurationP("runtime", "R", 2*time.Minute, "runtime ie 10m for ten minutes or 1h for 1 hour")
+	InterleaveCmd.Flags().IntSliceP("interleave", "I", []int{20, 40, 1}, "interleave: start,stop,increment")
+	InterleaveCmd.Flags().StringP("stakdirectory", "D", "xmr-stak", "xmr-stak folder, not needed if specified in config file")
+	InterleaveCmd.Flags().BoolP("logging", "L", false, "enable logging to file / Slack etc logging.conf")
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:

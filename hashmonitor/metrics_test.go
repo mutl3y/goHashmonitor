@@ -144,7 +144,7 @@ func TestExampleClient_Query(t *testing.T) {
 func Test_Write(t *testing.T) {
 	tdb := "hashmonitorTest2"
 	testCfg.Set("Influx.DB", tdb)
-	err := ConfigLogger("logging.conf", false)
+	err := ConfigLogger("logging.amdConf", false)
 	c := NewMetricsClient()
 	err = c.Config(testCfg)
 	if err != nil {
@@ -186,7 +186,7 @@ func Test_Write(t *testing.T) {
 func Test_metrics_checkDB(t *testing.T) {
 	tdb := "dbd"
 	testCfg.Set("Influx.DB", tdb)
-	err := ConfigLogger("logging.conf", false)
+	err := ConfigLogger("logging.amdConf", false)
 	c := NewMetricsClient()
 	err = c.Config(testCfg)
 	if err != nil {
@@ -213,4 +213,39 @@ func Test_metrics_checkDB(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_metrics_Event(t *testing.T) {
+	tdb := "testMine"
+	testCfg.Set("Influx.DB", tdb)
+	err := ConfigLogger("logging.amdConf", false)
+	if err != nil {
+		t.Fatalf("amdConf log issue %v", err)
+	}
+	m := NewMetricsClient()
+	err = m.Config(testCfg)
+	if err != nil {
+		t.Fatalf("metric config error %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		title   string
+		text    string
+		tags    string
+		wantErr bool
+	}{
+		{"", "first test event", "this is the text stuff", "tags,go,in,here", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := m.Event(tt.title, tt.text, tt.tags)
+			if (err != nil) != tt.wantErr {
+
+				t.Errorf("metrics.Event() error = %v, wantErr %v", err, tt.wantErr)
+
+			}
+		})
+	}
+	m.Stop()
 }

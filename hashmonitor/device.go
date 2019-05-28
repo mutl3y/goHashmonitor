@@ -27,6 +27,8 @@ func init() {
 		if !hasAdmin {
 			log.Fatalf("You need to run this as admin or allow bypass of UAC")
 		}
+	case OS == "linux":
+
 	default:
 		log.Fatalf("OS not yet supported: %v ", OS)
 	}
@@ -116,6 +118,7 @@ type devConCard struct {
 	pcidev, name string
 	running      bool
 }
+
 type CardData struct {
 	cards        []devConCard
 	dir          string
@@ -159,6 +162,11 @@ func (ca *CardData) GetStatus() error {
 			log.Errorf("error parsing devcon output:  %v", err)
 		}
 		return errors.Wrap(err, "failed updating device status")
+	case Os == "linux":
+
+		fmt.Println("device reset not available in Linux version")
+
+		return nil
 	default:
 		return fmt.Errorf("%v not supported", Os)
 	}
@@ -173,7 +181,7 @@ func (ca *CardData) ResetCards(force bool) error {
 	case Os == "windows":
 		for _, v := range ca.cards {
 			if !v.running || force {
-				log.Debugf("Resetting %v", v.name)
+				debug("Resetting %v", v.name)
 				command := fmt.Sprintf("powershell devcon.exe restart \"@%v\"", v.pcidev)
 				by, err := winCmd(ca.dir, command)
 				if err != nil {
@@ -220,7 +228,7 @@ func (ca *CardData) devConParse(r io.Reader) error {
 			card.running = false
 			wholeCard = true
 		default:
-			log.Debugf("unreconized devcon response %v", s)
+			debug("unreconized devcon response %v", s)
 		}
 		if wholeCard {
 			ca.cards = append(ca.cards, card)

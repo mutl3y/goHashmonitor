@@ -61,7 +61,7 @@ func TestCardData_ResetCards(t *testing.T) {
 
 	enabled := NewCardData(rstEnabled)
 	disabled := NewCardData(rstDisabled)
-	// err := ConfigLogger("logging.conf",false)
+	// err := ConfigLogger("logging.amdConf",false)
 
 	err := enabled.GetStatus()
 	if err != nil {

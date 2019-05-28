@@ -3,6 +3,7 @@ package hashmonitor
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/spf13/viper"
@@ -49,13 +50,21 @@ func DefaultConfig() *viper.Viper {
 	c.SetConfigFile("config.yaml")
 	c.SetConfigType("yaml")
 	c.AddConfigPath(root)
+	switch Os := runtime.GOOS; {
+	case Os == "windows":
+		c.SetDefault("Core.Stak.Port", 420)
+	case Os == "linux":
+		c.SetDefault("Core.Stak.Port", 1420)
+	default:
+		log.Fatalf("Config() OS not supported")
+	}
 
 	c.SetDefault("Core.Connection.Check.Seconds", 10)
 	c.SetDefault("Core.Connection.Check.Destination", "www.google.co.uk")
 	c.SetDefault("Core.Debug", false)
 	c.SetDefault("Core.Display.Destination", "Local")
 	c.SetDefault("Core.Display.Port", 8080)
-	c.SetDefault("Core.Log.Configfile", "logging.conf")
+	c.SetDefault("Core.Log.Configfile", "logging.amdConf")
 	// c.SetDefault("Core.Log.File", "hashmonitor.log")
 	// c.SetDefault("Core.Log.Rotate", true)
 	// c.SetDefault("Core.Log.Rotate_Hours", 24)
@@ -66,7 +75,7 @@ func DefaultConfig() *viper.Viper {
 	c.SetDefault("Core.Stak.Dir", root+"xmr-stak")
 	c.SetDefault("Core.Stak.Exe", "./xmr-stak.exe")
 	c.SetDefault("Core.Stak.Ip", "127.0.0.1")
-	c.SetDefault("Core.Stak.Port", 420)
+
 	c.SetDefault("Core.Stak.Refresh_MS", time.Millisecond*500)
 	c.SetDefault("Core.Stak.Timeout", 2)
 	c.SetDefault("Core.Stak.Start_Attempts", 3)

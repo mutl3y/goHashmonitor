@@ -43,9 +43,7 @@ var IntensityCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(IntensityCmd)
-
-	// Here you will define your flags and configuration settings.
+	// 	rootCmd.AddCommand(IntensityCmd)
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:

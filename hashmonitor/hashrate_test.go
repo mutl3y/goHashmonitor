@@ -24,9 +24,10 @@ func Test_stats_startingHash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &apiService{}
+			s.Stats = &rwStats{}
 			s.Stats.data.Threads = [][]float64{{10000.0}}
 			s.Stats.data.Uptime = tt.uptime
-			if err := s.startingHash(500, tt.stableTime); (err != nil) != tt.wantErr {
+			if err := s.startingHash(500, tt.stableTime, true); (err != nil) != tt.wantErr {
 				t.Fatalf("%v", err)
 			}
 
@@ -54,6 +55,7 @@ func Test_stats_minHash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			api := &apiService{}
+			api.Stats = &rwStats{}
 			api.Stats.data.Total = []float64{float64(tt.hashrate)}
 			if err := api.minHash(tt.min); (err != nil) != tt.wantErr {
 				t.Errorf("stats.minHash() error = %v, wantErr %v", err, tt.wantErr)

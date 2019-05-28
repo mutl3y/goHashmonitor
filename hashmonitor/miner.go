@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/SkyrisBactera/pkill"
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/SkyrisBactera/pkill"
 	"github.com/spf13/viper"
 )
 
@@ -58,10 +59,12 @@ type miner struct {
 	}
 	tools []string
 	// 	signal     chan struct{}
-	Up         bool
+	Up, Running bool
+
 	Stop       context.CancelFunc
 	Process    *os.Process
 	StdOutPipe *io.ReadCloser
+	ctx        context.Context
 }
 
 type Miner interface {
@@ -75,27 +78,46 @@ func NewMiner() *miner {
 	return m
 }
 
+func OSSettings() {
+
+	switch Os := runtime.GOOS; {
+	case Os == "windows":
+
+	case Os == "linux":
+		cmd := exec.Command("bash", "-c", "sudo sysctl -w vm.nr_hugepages=128")
+		err := cmd.Run()
+		if err != nil {
+			fmt.Println("Failed to setup hugepages", err)
+		}
+
+	default:
+		log.Fatalf("Config() OS not supported")
+	}
+}
+
 // ConfigMiner creates the base config, attaches a context and embeds a cancel func in the struct
-func (ms *miner) ConfigMiner(c *viper.Viper) (context.Context, error) {
-	ms.config.dir = root + c.GetString("Core.Stak.Dir")
-	if ms.config.dir == root {
-		return nil, fmt.Errorf("stak Directory Not Specified")
+func (ms *miner) ConfigMiner(c *viper.Viper) error {
+	ms.config.dir = c.GetString("Core.Stak.Dir")
+	if ms.config.dir == "" {
+		return fmt.Errorf("stak Directory Not Specified")
 	}
 	ms.config.exe = c.GetString("Core.Stak.Exe")
 	if ms.config.exe == "" {
-		return nil, fmt.Errorf("stak Executable Not Specified")
+		return fmt.Errorf("stak Executable Not Specified")
 	}
 	ms.config.args = c.GetStringSlice("Core.Stak.Args")
 	ms.config.startAttempts = c.GetInt("Core.Stak.Start_Attempts")
 	ms.tools = c.GetStringSlice("Core.Stak.Tools")
-	ctx, Stop := context.WithCancel(context.Background())
-	ms.Stop = Stop
-	return ctx, nil
+	ms.ctx, ms.Stop = context.WithCancel(context.Background())
+	ms.Running = true
+	return nil
 }
 
 // StartMining a configured miner
-func (ms *miner) StartMining(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, ms.config.exe, ms.config.args...)
+func (ms *miner) StartMining() error {
+	OSSettings()
+
+	cmd := exec.CommandContext(ms.ctx, ms.config.exe, ms.config.args...)
 	cmd.Dir = ms.config.dir
 	stdPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -108,22 +130,61 @@ func (ms *miner) StartMining(ctx context.Context) error {
 	}
 
 	if err = cmd.Start(); err != nil {
-		log.Debugf("%+v", cmd)
+		debug("%+v", cmd)
 		return fmt.Errorf("failed to start mining process, %v", err)
 	}
 
 	ms.Process = cmd.Process
 	ms.StdOutPipe = &stdPipe
 	debug("Starting STAK process ID %v", ms.Process.Pid)
+	fmt.Println("taking a breath, allowing stak to start, 10 seconds ...")
+
+	time.Sleep(10 * time.Second)
 	return err
+}
+func (ms *miner) StopMining() error {
+	debug("killing process id: %v", ms.Process.Pid)
+	ms.Stop()
+	if ms.Up {
+		ErrAccess := fmt.Errorf("access is denied")
+		if err := ms.Process.Kill(); err != nil && err != ErrAccess {
+			debug("failed to kill miner %v", err)
+			return err
+		}
+	}
+	exe := ms.config.exe
+	if exe == "" {
+		return fmt.Errorf("exe not specified")
+	}
+	exe = strings.ReplaceAll(exe, "./", "")
+
+	_, err := pkill.Pkill(exe)
+	if err != nil && (err.Error() != "exit status 1") {
+		debug("pkill error %v %v", exe, err)
+	}
+	ms.Running = false
+
+	return nil
+}
+
+func (ms *miner) killStak() error {
+	exe := ms.config.exe
+	if exe == "" {
+		return fmt.Errorf("exe not specified")
+	}
+	exe = strings.ReplaceAll(exe, "./", "")
+
+	_, _ = pkill.Pkill(exe)
+
+	return nil
 }
 
 func (ms *miner) ConsoleMetrics(met *metrics) {
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Errorf("failed to set hostname %v", err)
 	}
-	tags := map[string]string{"server": hostname}
 
 	scanner := bufio.NewScanner(*ms.StdOutPipe)
 	scanner.Split(bufio.ScanLines)
@@ -134,19 +195,32 @@ func (ms *miner) ConsoleMetrics(met *metrics) {
 
 		}
 		if len(m) > 0 {
+			tags := map[string]string{"server": hostname}
 			if m["TAG"] != nil {
 				tags["type"] = fmt.Sprintf("%v", m["TAG"])
 				delete(m, "TAG")
 			}
+			if m["gpu"] != nil {
+				tags["gpu"] = fmt.Sprintf("%v", m["gpu"])
+				delete(m, "gpu")
+			}
+			if m["thread"] != nil {
+				tags["thread"] = fmt.Sprintf("%v", m["thread"])
+				delete(m, "thread")
+			}
 			if err := met.Write("consoleMetrics", tags, m); err != nil {
 				debug("console metrics error %v", err)
 			}
-
-			debug("ConsoleMetrics %+v", m)
+			debug("ConsoleMetrics %+v %+v", tags, m)
+		}
+		if !ms.Running {
+			fmt.Println("miner not running")
+			break
 		}
 	}
 	if err = scanner.Err(); err != nil {
 		log.Errorf("Invalid input: %s", err)
+
 	}
 
 	return
@@ -192,7 +266,7 @@ func conParse(b []byte) (m map[string]interface{}, err error) {
 			debug("OpenCL device %v", s)
 
 		default:
-			if strings.Contains(s, "auto-tune validate ") {
+			if strings.Contains(s, "auto-tune validate") {
 				md, err := autotuneFilter(s)
 				if err != nil {
 					log.Errorf("conParse autotune decoding error %v\n", err)
@@ -201,9 +275,18 @@ func conParse(b []byte) (m map[string]interface{}, err error) {
 				for k, v := range md {
 					m[k] = v
 				}
+			} else if strings.Contains(s, "lock intensity at") {
+				md, err := lockFilter(s)
+				if err != nil {
+					log.Errorf("conParse lock decoding error %v\n", err)
+
+				}
+				for k, v := range md {
+					m[k] = v
+				}
 			} else {
 
-				log.Debugf("conParse unparsed openCl %v\n", s)
+				debug("conParse unparsed openCl %v\n", s)
 			}
 		}
 	case "Mini":
@@ -218,6 +301,8 @@ func conParse(b []byte) (m map[string]interface{}, err error) {
 	case "Comp": // fmt.Printf("compiling\t%v\n", s)
 	case "Star": // fmt.Printf("startup \t%v\n", s)
 	case "New ": // fmt.Printf("new block %v\n", s)
+	case "Swit": // fmt.Printf("switch too %v\n", s)
+	case "hwlo": // fmt.Printf("hwloc %v\n", s)
 	case "Resu":
 		debug("result %v\n", s)
 	default:
@@ -246,11 +331,11 @@ func interleaveFilter(s string) (m map[string]interface{}, err error) {
 	// }()
 
 	gpuThread := strings.Split(fields[0][:len(fields[0])-1], "|")
-	if m["gpu"], err = strconv.ParseInt(gpuThread[0], 0, 64); err != nil {
-		return m, fmt.Errorf("gpu %v", err)
-	}
-
 	if len(gpuThread) > 0 {
+		if m["gpu"], err = strconv.ParseInt(gpuThread[0], 0, 64); err != nil {
+			return m, fmt.Errorf("gpu %v", err)
+		}
+
 		if m["thread"], err = strconv.ParseInt(gpuThread[1], 0, 64); err != nil {
 			return m, fmt.Errorf("thread %v", err)
 		}
@@ -271,8 +356,13 @@ func interleaveFilter(s string) (m map[string]interface{}, err error) {
 		}
 	}
 	m["TAG"] = "interleave_event"
+	debug("interleave filter %v", fields)
 	return m, nil
 
+}
+
+type autoTuneStat struct {
+	gpu, thread, intensity int64
 }
 
 func autotuneFilter(s string) (m map[string]interface{}, err error) {
@@ -287,7 +377,50 @@ func autotuneFilter(s string) (m map[string]interface{}, err error) {
 	// }()
 
 	gpuThread := strings.Split(fields[1][:len(fields[1])-1], "|")
-	fmt.Printf("%+v", gpuThread)
+	gpu, err := strconv.ParseInt(gpuThread[0], 0, 64)
+	if err != nil {
+		return m, fmt.Errorf("gpu %v", err)
+	}
+	m["gpu"] = gpu
+
+	thread, err := strconv.ParseInt(gpuThread[1], 0, 64)
+	if err != nil {
+		return m, fmt.Errorf("thread %v", err)
+	}
+	m["thread"] = thread
+	// extract last and average
+	intPair := strings.Split(fields[5], "|")
+	intensity, err := strconv.ParseInt(intPair[0], 0, 64)
+	if err != nil {
+		return m, fmt.Errorf("new %v", err)
+	}
+	m["newIntensity"] = intensity
+	if m["oldIntensity"], err = strconv.ParseInt(intPair[1], 0, 64); err != nil {
+		return m, fmt.Errorf("old %v", err)
+	}
+	m["TAG"] = "autotune_event"
+
+	LockCounter.mu.Lock()
+	id := fmt.Sprintf("ID%v%v", gpu, thread)
+	LockCounter.threads[id] = autoTuneStat{gpu, thread, intensity}
+	LockCounter.mu.Unlock()
+
+	return m, nil
+
+}
+
+func lockFilter(s string) (m map[string]interface{}, err error) {
+	// `<gpu id>|<thread id on the gpu>: <last delay>/<average calculation per hash bunch> ms - <interleave value>`
+	m = make(map[string]interface{})
+
+	fields := strings.Fields(s)
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		err = fmt.Errorf("dsddsdfsd")
+	// 	}
+	// }()
+
+	gpuThread := strings.Split(fields[1][:len(fields[1])-1], "|")
 	if m["gpu"], err = strconv.ParseInt(gpuThread[0], 0, 64); err != nil {
 		return m, fmt.Errorf("gpu %v", err)
 	}
@@ -296,51 +429,16 @@ func autotuneFilter(s string) (m map[string]interface{}, err error) {
 		return m, fmt.Errorf("thread %v", err)
 	}
 
-	// extract last and average
-	intPair := strings.Split(fields[5], "|")
-	if m["newIntensity"], err = strconv.ParseInt(intPair[0], 0, 64); err != nil {
+	if m["lockIntensity"], err = strconv.ParseInt(fields[5], 0, 64); err != nil {
 		return m, fmt.Errorf("new %v", err)
 	}
-	if m["oldIntensity"], err = strconv.ParseInt(intPair[1], 0, 64); err != nil {
-		return m, fmt.Errorf("old %v", err)
-	}
-	m["TAG"] = "autotune_event"
-	// if m["average"], err = strconv.ParseFloat(laPair[1], 64); err != nil {
-	// 	return m, fmt.Errorf("average %v", err)
-	// }
-	//
-	// if len(fields) >= 5 {
-	// 	if m["interleave"], err = strconv.ParseFloat(fields[4], 64); err != nil {
-	// 		return m, fmt.Errorf("interleave %v", err)
-	// 	}
-	// 	}
 
+	m["TAG"] = "intensityLock_event"
+	LockCounter.mu.Lock()
+	LockCounter.Counter += 1
+	LockCounter.mu.Unlock()
 	return m, nil
 
-}
-
-func (ms *miner) StopMining() error {
-	debug("killing process id: %v", ms.Process.Pid)
-	ms.Stop()
-	if ms.Up {
-		ErrAccess := fmt.Errorf("access is denied")
-		if err := ms.Process.Kill(); err != nil && err != ErrAccess {
-			debug("failed to kill miner %v", err)
-			return err
-		}
-	}
-	exe := ms.config.exe
-	if exe == "" {
-		return fmt.Errorf("exe not specified")
-	}
-	exe = strings.ReplaceAll(exe, "./", "")
-
-	_, err := pkill.Pkill(exe)
-	if err != nil && (err.Error() != "exit status 1") {
-		debug("pkill error %v %v", exe, err)
-	}
-
-	return nil
 }
 
 // ResetCards()

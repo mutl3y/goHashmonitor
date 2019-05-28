@@ -20,7 +20,7 @@ func Test_apiService_Monitor(t *testing.T) {
 	tCfg.Set("Influx.Enabled", true)
 	tCfg.Set("Influx.FlushSec", 2*time.Second)
 
-	// if err := ConfigLogger("logging.conf", false); err != nil {
+	// if err := ConfigLogger("logging.amdConf", false); err != nil {
 	// }
 	fmt.Println(tCfg.GetString(""))
 	as := NewStatsService(tCfg).(*apiService)
@@ -53,6 +53,7 @@ func Test_apiService_StopMonitor(t *testing.T) {
 	tcfg := DefaultConfig()
 	as := NewStatsService(tcfg).(*apiService)
 	met := &metrics{}
+
 	tests := []struct {
 		name    string
 		api     *apiService
@@ -62,6 +63,8 @@ func Test_apiService_StopMonitor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.api.Monitor(met)
+
 			if ok := tt.api.stopMonitor(met); (ok != true) != tt.wantErr {
 				t.Errorf("apiService.stopMonitor() error = %v, match %v", ok, tt.wantErr)
 			}
@@ -118,8 +121,8 @@ func Test_apiService_Map(t *testing.T) {
 		match bool
 	}{
 		{"no threads", testStats, map[string]interface{}{}, true},
-		{"thread 0", testStats2, map[string]interface{}{"Thread_0": 11.1}, true},
-		{"thread 0 mismatch", testStats2, map[string]interface{}{"Thread_0": 11.2}, false},
+		{"thread 0", testStats2, map[string]interface{}{"Thread.0": 11.1}, true},
+		{"thread 0 mismatch", testStats2, map[string]interface{}{"Thread.0": 11.2}, false},
 
 		// {"", testStats, map[string]interface{}{}, false},
 		// {"", testStats, map[string]interface{}{}, false},
@@ -131,7 +134,7 @@ func Test_apiService_Map(t *testing.T) {
 				if !reflect.DeepEqual(got[mapKey], tt.want[mapKey]) {
 					if tt.match {
 						t.Errorf("%v Got  %v %T Want %v %T", mapKey, got[mapKey], got[mapKey], tt.want[mapKey], tt.want[mapKey])
-						fmt.Println("local deepequal", DeepEqual(got[mapKey], tt.want[mapKey]))
+						t.Logf("local deepequal %+v", DeepEqual(got[mapKey], tt.want[mapKey]))
 					}
 
 				}

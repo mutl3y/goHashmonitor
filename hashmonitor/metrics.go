@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -133,22 +134,16 @@ func (m *metrics) Write(measurment string, tags map[string]string, fields map[st
 		Tags:        tags,
 		Fields:      fields,
 		Time:        time.Now(),
-		Raw:         "",
 	}
 	// Valid values for Precision are n, u, ms, s, m, and h
 
-	select {
-	case <-time.After(time.Millisecond * 100):
+	if l := cap(m.pointsQueue) - len(m.pointsQueue); l < 1 {
 		log.Infof("influx write queue timed out")
-		time.Sleep(time.Millisecond * 1000)
-
 		return errors.New("stats queue full, discarding")
-	case m.pointsQueue <- p:
-		// debug("measurement %v", measurment)
-		// debug("tags %v", tags)
-		// debug("fields %v", fields)
-		//
-		// debug("wrote to queue")
+	}
+
+	if m.pointsQueue != nil {
+		m.pointsQueue <- p
 	}
 	return nil
 }
@@ -161,7 +156,21 @@ func (m *metrics) checkDB() error {
 	}
 
 	debug("Checking Influx DB")
-
+	//
+	// if false {
+	// 	query := inf.Query{
+	// 		Command:  fmt.Sprintf("DROP DATABASE %s", m.db),
+	// 		Database: m.db,
+	// 	}
+	// 	results, err := m.client.Query(query)
+	// 	if err != nil || results.Err != nil {
+	// 		return fmt.Errorf("failed dropping DB %v", err)
+	//
+	// 	}
+	//
+	// 	time.Sleep(2 * time.Second)
+	// }
+	//
 	query := inf.Query{
 		Command:  fmt.Sprintf("CREATE DATABASE %s", m.db),
 		Database: m.db,
@@ -181,8 +190,8 @@ func (m *metrics) checkDB() error {
 		return fmt.Errorf("failed creating retension policy %v", err)
 
 	}
-
-	return nil
+	debug("influxdb ok")
+	return err
 }
 
 func afterTime(t time.Time) <-chan time.Time {
@@ -196,10 +205,10 @@ func afterTime(t time.Time) <-chan time.Time {
 }
 
 func (m *metrics) backGroundWriter() {
-	log.Infof("backGroundWriter db %v", m.db)
+	debug("backGroundWriter db %v", m.db)
 	// turn call into a no op if not enabled
 	if !m.Enabled() {
-		fmt.Printf("stats disabled\n")
+		debug("stats disabled")
 		return
 	}
 	err := m.checkDB()
@@ -210,36 +219,45 @@ func (m *metrics) backGroundWriter() {
 	debug("Starting Influx Writer")
 	type queue struct {
 		points []inf.Point
-		sync.RWMutex
+		sync.Mutex
 	}
 	q := new(queue)
-	blankPoints := make([]inf.Point, 0, 100)
+	blankPoints := make([]inf.Point, 0, 1000)
 	q.points = blankPoints
 
 	flush := func(q *queue) {
-		debug("backGroundWriter flushing metrics queue")
+		// debug("backGroundWriter flushing metrics queue")
 		nextFlush = time.Now().Add(m.refresh)
 		q.Lock()
 		length := len(q.points)
 
-		if length >= 1 {
-
+		if length > 0 {
+			debug("influx queue depth %v", length)
 			p := q.points
-			q.points = blankPoints
+			q.points = make([]inf.Point, 0, 1000)
+
 			// todo move retention policy to config
 			go func(p []inf.Point) {
 				res, err := m.client.Write(inf.BatchPoints{Points: p, Database: m.db, RetentionPolicy: "a_year", Time: time.Now()})
 				if err != nil {
 					log.Errorf("backGroundWriter: %v", err)
+					if strings.Contains(err.Error(), "database not found") {
+						check := m.checkDB()
+						if check != nil {
+							debug("Influx DB issue")
+							// todo m.enabled = false
+							return
+						}
+					}
 				}
-
 				if Debug {
-					debug("client write: %v\n", &p)
+					debug("client write: %+v\n", p)
 					debug("response %v\n", res)
 				}
 			}(p)
 
 		}
+
 		q.Unlock()
 	}
 
@@ -267,43 +285,23 @@ func (m *metrics) backGroundWriter() {
 		}
 	}
 }
-
 func (m *metrics) Stop() {
 	// debug("%v %T", &m.done, &m.done)
 	// m.done <- true
 	m.mu.Lock()
 	m.enabled = false
 	m.mu.Unlock()
-	close(m.pointsQueue)
+	m.pointsQueue = nil
 	// close(m.done)
 }
 
-//  stats to send
-/*  stats to send
-threads := []int{122, 3321, 4434, 5655, 666, 777}
-
-
-for i, v := range threads {
-	id := fmt.Sprintf("thread_%v", i)
-	pts[0].Fields[id] = v
-	stats.Set(id, v)
+// Event writes event data to influx using line protocol
+func (m *metrics) Event(title, text, tags string) (err error) {
+	if !m.Enabled() {
+		return nil
+	}
+	debug("met.event() %v, %v, %v", title, text, tags)
+	dd := fmt.Sprintf("events title=%q,text=%q,tags=%q", title, text, tags)
+	_, err = m.client.WriteLineProtocol(dd, m.db, "", "s", "")
+	return err
 }
-
-res, err	:= m.client.Write(bps)
-if err != nil {
-	log.Fatal(err)
-}
-
-for k, v := range stats.Items() {
-	fmt.Printf("%v:%v\n", k, v)
-}
-return res.Err-
-
-Function grafana{
-$Metrics.add( 'balance', $script:balance )
-$Metrics.add( 'btcprice', $script:btcprice )
-$Metrics.add( "estCoin$coinStats", $script:coins )
-$Metrics.add( "estDollar$coinStats", $script:dollars )
-$Metrics.add( 'avghash1hr', $script:avghash1hr )
-$script:nanopoolLastUpdate=$runTime
-}*/

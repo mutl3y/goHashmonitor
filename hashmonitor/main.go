@@ -7,75 +7,74 @@ import (
 )
 
 // var wg sync.WaitGroup
+type MineSession struct {
+	confFile string
+	api      *apiService
+	ca       *CardData
+	met      *metrics
+	amdConf  AmdConf
+	stop     chan bool
+}
 
-func Mine(c *viper.Viper) {
-	err := ConfigLogger("logging.conf", false)
+func (s *MineSession) Mine(c *viper.Viper) error {
+	gpuConf := s.amdConf.GpuThreadsConf
+	if len(gpuConf) == 0 {
+		return fmt.Errorf("no threads found in amd.txt")
+	}
+
+	err := s.ca.ResetCards(true)
 	if err != nil {
-		fmt.Printf("failed to configure logging")
+		return fmt.Errorf("reset %v", err)
 	}
 
-	cards := NewCardData(c)
-	err = cards.GetStatus()
-	if err != nil {
-		fmt.Printf("%+v\n", err)
-	}
-	debug(cards.String())
-	if err = cards.ResetCards(false); err != nil {
-		fmt.Printf("error Resetting cards %v\n", err)
-	}
-
-	api := NewStatsService(c).(*apiService)
-	met := NewMetricsClient()
-	met.enabled = true
-	met.refresh = 10 * time.Second
-	met.db = "testMine"
-
-	if err = met.Config(c); err != nil {
-		log.Infof("failed to config metrics client")
-	}
-
-	go met.backGroundWriter()
-
-	go api.Monitor(met)
-
+	// config miner early so we can use kill method
 	m := NewMiner()
-	ctx, err := m.ConfigMiner(c)
+	err = m.ConfigMiner(c)
 	if err != nil {
-		log.Errorf("Failed configuring miner: %v\n", err)
+		return fmt.Errorf("Failed configuring miner: %v\n", err)
 	}
 
-	err = m.StartMining(ctx)
+	err = m.killStak()
 	if err != nil {
-		log.Errorf("failed to start mining %v", err)
+		log.Errorf("killStak %v", err)
 	}
-	defer func(m *miner) {
-		if err = m.StopMining(); err != nil {
-			log.Errorf("failed to stop miner %v\n", err)
-		}
-	}(m)
+
+	// write amd.conf to influx
+	tags := map[string]string{"type": "amdConf"}
+	err = s.met.Write("config", tags, s.amdConf.Map())
+	if err != nil {
+		return fmt.Errorf("Failed to write metrics %v", err)
+	}
+	err = s.met.Event(fmt.Sprintf("%+v", s.amdConf), "", "stak config")
+	if err != nil {
+		debug("failed to send event data %v", err)
+	}
+
+	// todo loop round current hash
+	go s.api.showMonitor()
+	defer s.api.stopMonitor(s.met)
+	err = MiningSession(m, s.api, s.met)
+
+	return nil
+}
+
+func MiningSession(m *miner, api *apiService, met *metrics) error {
+	defer func() { _ = m.StopMining() }()
+	err := m.StartMining()
+	if err != nil {
+		return fmt.Errorf("failed to start mining %v", err)
+	}
 
 	go m.ConsoleMetrics(met)
 
-	err = api.startingHash(200, 17*time.Second)
+	err = api.startingHash(200, 20*time.Second, true)
 	if err != nil {
-		log.Errorf("currenthash %v", err)
+
 	}
-	go api.showMonitor()
-	err = api.currentHash(300, 2, 1*time.Second)
+	err = api.currentHash(200, 5, 1*time.Second)
 	if err != nil {
-		log.Errorf("currenthash %v", err)
+		return fmt.Errorf("currenthash %v", err)
 	}
-	api.stopMonitor(met)
 
-	// miningTime := 1 * time.Minute
-	// time.Sleep(miningTime)
-
+	return nil
 }
-
-// func profitMine() {
-// 	cards := NewCardData()
-// 	err := cards.GetStatus(cfg)
-// 	if err != nil {
-// 		fmt.Printf("%+v\n", err)
-// 	}
-// }

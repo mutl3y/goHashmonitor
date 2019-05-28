@@ -103,7 +103,7 @@ func (t *testPlan) Save() (err error) {
 func (t *testPlan) Run(c *viper.Viper) (err error) {
 
 	stakdir := c.GetString("Core.Stak.Dir") + string(os.PathSeparator)
-	amdText := stakdir + "amd.txt"
+	amdText := stakdir + "amd.txt.save"
 	f, err := os.OpenFile(amdText, os.O_RDONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("tp.Run.open %v", err)
@@ -113,7 +113,7 @@ func (t *testPlan) Run(c *viper.Viper) (err error) {
 
 	tst := NewAmdConfig()
 	if err = tst.gpuConfParse(f); err != nil {
-		return fmt.Errorf("tp.run.conf %v", err)
+		return fmt.Errorf("tp.run.amdConf %v", err)
 	}
 
 	var amdFile string
@@ -122,7 +122,7 @@ func (t *testPlan) Run(c *viper.Viper) (err error) {
 	}
 
 	m := NewMiner()
-	ctx, err := m.ConfigMiner(c)
+	err = m.ConfigMiner(c)
 	if err != nil {
 		return fmt.Errorf("tp.run.config: %v", err)
 	}
@@ -132,7 +132,7 @@ func (t *testPlan) Run(c *viper.Viper) (err error) {
 	fmt.Printf("*****************************************************************%v", ti)
 	m.config.args = append(m.config.args, "--benchmark", "cryptonight_heavy", "--benchwait", "5", "--benchwork", "10", "--amd", amdText)
 	fmt.Printf("%v", m.config)
-	err = m.StartMining(ctx)
+	err = m.StartMining()
 	if err != nil {
 		return fmt.Errorf("intensity.run.start: %v", err)
 	}
