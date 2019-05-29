@@ -25,10 +25,10 @@ func Test_stats_startingHash(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &apiService{}
 			s.Stats = &rwStats{}
-			s.Stats.data.Threads = [][]float64{{10000.0}}
+			s.Stats.data.Total = []float64{10000.0}
 			s.Stats.data.Uptime = tt.uptime
 			if err := s.startingHash(500, tt.stableTime, true); (err != nil) != tt.wantErr {
-				t.Fatalf("%v", err)
+				t.Fatalf("%v\n", err)
 			}
 
 		})
@@ -83,15 +83,12 @@ func Test_stats_currentHash(t *testing.T) {
 	for _, tt := range tests {
 		stat := stats{}
 		stat.Total = []float64{float64(tt.hashrate)}
-		debug("tch %v", *api)
 		api.StatsUpdate(stat)
 		var wg sync.WaitGroup
 		wg.Add(1)
-		go simApi(api, &wg, tt.hashrate, tt.decayRate, 500*time.Millisecond)
+		go simApi(api, &wg, tt.hashrate, tt.decayRate, 502*time.Millisecond)
 		wg.Wait()
 		t.Run(tt.name, func(t *testing.T) {
-
-			// api.Stats = rwStats{}
 
 			if err := api.currentHash(tt.hash, tt.maxErrors, tt.refresh); (err != nil) != tt.wantErr {
 				t.Errorf("stats.currentHash() error = %v, wantErr %v", err, tt.wantErr)

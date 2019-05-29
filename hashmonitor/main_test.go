@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestMine(t *testing.T) {
+func _TestMine(t *testing.T) {
 	tcfg, err := Config()
 	if err != nil {
 		t.Fatalf("error configing for test")
@@ -74,12 +74,10 @@ func TestMine(t *testing.T) {
 		wantErr bool
 	}{
 		{"int 100 fail ", args{MineSession{}, tcfg}, true},
-		{"int 100", args{MineSession{
-			"xmr-stak/amd.txt", api, cards, met, amdConf}, tcfg}, false},
+		{"int 100", args{MineSession{"xmr-stak/amd.txt", api, cards, met, amdConf}, tcfg}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			time.AfterFunc(30*time.Second, func() { tt.args.s.stopMine() })
 			err = tt.args.s.Mine(tt.args.c)
 			if (err != nil) && !tt.wantErr {
 				t.Fatalf("%v", err)

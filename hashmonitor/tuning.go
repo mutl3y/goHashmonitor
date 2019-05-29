@@ -95,15 +95,15 @@ func TuningRun(c *viper.Viper, run IntensityRun) error {
 
 		for i := intstart; i <= intStop; i += inc {
 			// save amd.txt for run
-			conf := amdConf.GpuThreadsConf[0]
-			conf.Interleave = run.Interleave
+			config := amdConf.GpuThreadsConf[0]
+			config.Interleave = run.Interleave
 
-			conf.Intensity = i
+			config.Intensity = i
 
-			conf.Worksize = wrksize
+			config.Worksize = wrksize
 
 			for k := range amdConf.GpuThreadsConf {
-				amdConf.GpuThreadsConf[k] = conf
+				amdConf.GpuThreadsConf[k] = config
 			}
 
 			amdConf.AutoTune = run.AutoTune
@@ -174,7 +174,7 @@ func RunMiner(s tuneSession, c *viper.Viper) error {
 	tags := map[string]string{"type": "amdConf"}
 	err = s.met.Write("config", tags, s.amdConf.Map())
 	if err != nil {
-		return fmt.Errorf("Failed to write metrics %v", err)
+		return fmt.Errorf("failed to write metrics %v", err)
 	}
 	err = s.met.Event(fmt.Sprintf("%+v", s.amdConf), "", "stak config")
 	if err != nil {
@@ -212,15 +212,6 @@ func RunMiner(s tuneSession, c *viper.Viper) error {
 	}
 
 	return nil
-}
-
-func highestDiv(numerator, divider int) int {
-	var result int
-	if divider > numerator {
-		return divider
-	}
-	result = (numerator / divider) * divider
-	return result
 }
 
 func InterleaveSession(c *viper.Viper, run InterleaveRun) error {
@@ -277,11 +268,11 @@ func InterleaveSession(c *viper.Viper, run InterleaveRun) error {
 			continue
 		}
 		// save amd.txt for run
-		conf := amdConf.GpuThreadsConf[0]
-		conf.Interleave = interleave
+		config := amdConf.GpuThreadsConf[0]
+		config.Interleave = interleave
 
 		for k := range amdConf.GpuThreadsConf {
-			amdConf.GpuThreadsConf[k] = conf
+			amdConf.GpuThreadsConf[k] = config
 		}
 
 		amdConf.AutoTune = 0
@@ -304,4 +295,13 @@ func InterleaveSession(c *viper.Viper, run InterleaveRun) error {
 	api.stopMonitor(met)
 
 	return nil
+}
+
+func highestDiv(numerator, divider int) int {
+	var result int
+	if divider > numerator {
+		return divider
+	}
+	result = (numerator / divider) * divider
+	return result
 }

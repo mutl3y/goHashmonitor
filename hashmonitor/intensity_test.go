@@ -3,11 +3,8 @@ package hashmonitor
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"testing"
 	"time"
-
-	"github.com/spf13/viper"
 )
 
 // func Test_testPlan_New(t *testing.T) {
@@ -100,24 +97,6 @@ func Test_testPlan_Load(t *testing.T) {
 	}
 }
 
-func TestNewIntensityRun(t *testing.T) {
-	type args struct {
-		conf *AmdConf
-	}
-	var tests []struct {
-		name string
-		args args
-		want *intensity
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewIntensityRun(tt.args.conf); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewIntensityRun() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Test_testPlan_Results(t *testing.T) {
 	type fields struct {
 		name         string
@@ -148,19 +127,19 @@ func Test_testPlan_Results(t *testing.T) {
 				t.Fatalf("testPlan.Results().parsetime\n %v", err)
 			}
 			tp.RunTime = ti
-			if err := tp.Load(false); (err != nil) != tt.wantErr {
+			if err = tp.Load(false); (err != nil) != tt.wantErr {
 				t.Fatalf("testPlan.Results() error loading file %v\n", err)
 
 			}
-			if err := tp.Results(); err != nil {
+			if err = tp.Results(); err != nil {
 				t.Errorf("testPlan.Results() issue getting results %v %+v\n", err, tt)
 			}
 
 			for i, v := range tp.ResultsSlice {
 				fmt.Printf("index: %v, value: %v", i, v)
 			}
-			if _, err := os.Stat(tp.File); err == nil {
-				if err := os.Remove(tp.File); err != nil {
+			if _, err = os.Stat(tp.File); err == nil {
+				if err = os.Remove(tp.File); err != nil {
 					t.Logf("Cleanup failed %v", err)
 
 				}
@@ -170,95 +149,71 @@ func Test_testPlan_Results(t *testing.T) {
 	}
 }
 
-// func Test_testPlan_Run(t *testing.T) {
-// 	type fields struct {
-// 		name         string
-// 		minIntensity int
-// 		maxIntensity int
-// 		runTime      string
-// 		startTime    time.Time
-// 		endTime      time.Time
-// 		results      []intensity
-// 		file         string
+// func TestNewIntensityRun(t *testing.T) {
+// 	type args struct {
+// 		conf *AmdConf
 // 	}
-// 	tests := []struct {
-// 		name    string
-// 		fields  fields
-// 		match bool
-// 	}{
-// 		{name: "", fields: fields{name: "amd_1", minIntensity: 20, maxIntensity: 40, runTime: "10s"}, match: false},
-// 		// {name: "", fields: fields{name: "amd/20", minIntensity: 20, maxIntensity: 40, runTime: "10s"}, match: true},
-// 		// {name: "", fields: fields{name: "sp3cial", minIntensity: 20, maxIntensity: 20, runTime: "10s"}, match: false},
+// 	var tests []struct {
+// 		name string
+// 		args args
+// 		want *intensity
 // 	}
 // 	for _, tt := range tests {
 // 		t.Run(tt.name, func(t *testing.T) {
-// 			tp := NewTestPlan(tt.fields.name)
-// 			tp.MinIntensity = tt.fields.minIntensity
-// 			tp.MaxIntensity = tt.fields.maxIntensity
-// 			ti, err := time.ParseDuration(tt.fields.runTime)
-// 			if err != nil {
-// 				t.Errorf("testPlan.Run().parsetime\n %v", err)
-// 			}
-// 			tp.RunTime = ti
-// 			if err := tp.Load(true); (err != nil) != tt.match {
-// 				t.Errorf("testPlan.Results() error loading file %v\n", err)
-//
-// 			}
-//
-// 			if err := tp.Run(); err != nil {
-// 				t.Errorf("testPlan.Run() error = %v, match %v", err, tt.match)
+// 			if got := NewIntensityRun(tt.args.conf); !reflect.DeepEqual(got, tt.want) {
+// 				t.Errorf("NewIntensityRun() = %v, want %v", got, tt.want)
 // 			}
 // 		})
 // 	}
 // }
-
-func TestNewTestPlan(t *testing.T) {
-	type args struct {
-		n string
-	}
-	var tests []struct {
-		name string
-		args args
-		want *testPlan
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewTestPlan(tt.args.n); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewTestPlan() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_testPlan_Run(t *testing.T) {
-	type args struct {
-		c *viper.Viper
-	}
-	var tests []struct {
-		name    string
-		t       *testPlan
-		args    args
-		wantErr bool
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.t.Run(tt.args.c); (err != nil) != tt.wantErr {
-				t.Errorf("testPlan.Run() error = %v, match %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func Test_newIntensity(t *testing.T) {
-	var tests []struct {
-		name string
-		want intensity
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := newIntensity(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newIntensity() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+//
+// func TestNewTestPlan(t *testing.T) {
+// 	type args struct {
+// 		n string
+// 	}
+// 	var tests []struct {
+// 		name string
+// 		args args
+// 		want *testPlan
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if got := NewTestPlan(tt.args.n); !reflect.DeepEqual(got, tt.want) {
+// 				t.Errorf("NewTestPlan() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
+//
+// func Test_testPlan_Run(t *testing.T) {
+// 	type args struct {
+// 		c *viper.Viper
+// 	}
+// 	var tests []struct {
+// 		name    string
+// 		t       *testPlan
+// 		args    args
+// 		wantErr bool
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if err := tt.t.Run(tt.args.c); (err != nil) != tt.wantErr {
+// 				t.Errorf("testPlan.Run() error = %v, match %v", err, tt.wantErr)
+// 			}
+// 		})
+// 	}
+// }
+//
+// func Test_newIntensity(t *testing.T) {
+// 	var tests []struct {
+// 		name string
+// 		want intensity
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if got := newIntensity(); !reflect.DeepEqual(got, tt.want) {
+// 				t.Errorf("newIntensity() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }

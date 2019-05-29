@@ -189,9 +189,9 @@ func (ms *miner) ConsoleMetrics(met *metrics) {
 	scanner := bufio.NewScanner(*ms.StdOutPipe)
 	scanner.Split(bufio.ScanLines)
 	for scanner.Scan() {
-		m, err := conParse(scanner.Bytes())
-		if err != nil && err.Error() != "no match" {
-			log.Errorf("Error parsing %v\n", err)
+		m, scanErr := conParse(scanner.Bytes())
+		if scanErr != nil && scanErr.Error() != "no match" {
+			log.Errorf("Error parsing %v\n", scanErr)
 
 		}
 		if len(m) > 0 {
@@ -208,8 +208,8 @@ func (ms *miner) ConsoleMetrics(met *metrics) {
 				tags["thread"] = fmt.Sprintf("%v", m["thread"])
 				delete(m, "thread")
 			}
-			if err := met.Write("consoleMetrics", tags, m); err != nil {
-				debug("console metrics error %v", err)
+			if scanErr = met.Write("consoleMetrics", tags, m); scanErr != nil {
+				debug("console metrics error %v", scanErr)
 			}
 			debug("ConsoleMetrics %+v %+v", tags, m)
 		}
@@ -253,9 +253,9 @@ func conParse(b []byte) (m map[string]interface{}, err error) {
 
 		switch s[:12] {
 		case "OpenCL Inter":
-			md, err := interleaveFilter(s[18:])
-			if err != nil {
-				log.Errorf("conParse interleave decoding error %v\n", err)
+			md, intErr := interleaveFilter(s[18:])
+			if intErr != nil {
+				log.Errorf("conParse interleave decoding error %v\n", intErr)
 
 			}
 			for k, v := range md {
@@ -267,18 +267,18 @@ func conParse(b []byte) (m map[string]interface{}, err error) {
 
 		default:
 			if strings.Contains(s, "auto-tune validate") {
-				md, err := autotuneFilter(s)
-				if err != nil {
-					log.Errorf("conParse autotune decoding error %v\n", err)
+				md, tuneErr := autotuneFilter(s)
+				if tuneErr != nil {
+					log.Errorf("conParse autotune decoding error %v\n", tuneErr)
 
 				}
 				for k, v := range md {
 					m[k] = v
 				}
 			} else if strings.Contains(s, "lock intensity at") {
-				md, err := lockFilter(s)
-				if err != nil {
-					log.Errorf("conParse lock decoding error %v\n", err)
+				md, filterErr := lockFilter(s)
+				if filterErr != nil {
+					log.Errorf("conParse lock decoding error %v\n", filterErr)
 
 				}
 				for k, v := range md {
@@ -390,11 +390,11 @@ func autotuneFilter(s string) (m map[string]interface{}, err error) {
 	m["thread"] = thread
 	// extract last and average
 	intPair := strings.Split(fields[5], "|")
-	intensity, err := strconv.ParseInt(intPair[0], 0, 64)
+	i, err := strconv.ParseInt(intPair[0], 0, 64)
 	if err != nil {
 		return m, fmt.Errorf("new %v", err)
 	}
-	m["newIntensity"] = intensity
+	m["newIntensity"] = i
 	if m["oldIntensity"], err = strconv.ParseInt(intPair[1], 0, 64); err != nil {
 		return m, fmt.Errorf("old %v", err)
 	}
@@ -402,7 +402,7 @@ func autotuneFilter(s string) (m map[string]interface{}, err error) {
 
 	LockCounter.mu.Lock()
 	id := fmt.Sprintf("ID%v%v", gpu, thread)
-	LockCounter.threads[id] = autoTuneStat{gpu, thread, intensity}
+	LockCounter.threads[id] = autoTuneStat{gpu, thread, i}
 	LockCounter.mu.Unlock()
 
 	return m, nil

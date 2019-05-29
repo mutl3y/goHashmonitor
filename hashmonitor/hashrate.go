@@ -26,15 +26,16 @@ var LockCounter = newIntensityCounter()
 func (api *apiService) minHash(min int) error {
 	a := api.StatsCopy()
 	if len(a.Total) == 0 {
-		api.Stats.mu.Lock()
 		api.Stats.data.Total = []float64{0.0}
-		api.Stats.mu.Unlock()
 		return nil
 	}
+	// fmt.Printf("minhash %T %p %v\n", a.Total[0], &a.Total, a.Total)
+	// fmt.Printf("statscopy %T %p %v\n", stat.Total, &stat.Total, stat.Total)
 
 	if a.Total[0] < float64(min) {
 		return fmt.Errorf("minimum hashrate not met want > %v got %v", float64(min), a.Total[0])
 	}
+
 	return nil
 }
 
@@ -45,9 +46,8 @@ func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck b
 	// 	stableTime = 2 * time.Second
 	// }
 	s := api.StatsCopy()
-
 	if (float64(s.Uptime) >= stableTime.Seconds()) && upCheck {
-		debug("Stak already up")
+		fmt.Println("Stak already up")
 		return api.minHash(min)
 	}
 
@@ -68,7 +68,7 @@ func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck b
 			}
 			tm.Clear()
 			_, _ = tm.Printf("\r%v H/R %v", stableTime.Round(time.Second), hr)
-			TmFlush()
+			tmFlush()
 			stableTime -= time.Second
 		}
 	}
@@ -165,7 +165,7 @@ func (api *apiService) tuningHash(runTime, after time.Duration, threads int) err
 				_, _ = tm.Printf("all thread intensities locked, exiting run at %v\n", lockTimeout.Round(time.Second))
 
 			}
-			tm.Flush()
+			tmFlush()
 			t := time.Now()
 			if lockTimeout.Unix() >= 1 {
 				if t.After(lockTimeout) {

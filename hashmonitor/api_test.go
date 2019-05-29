@@ -184,8 +184,8 @@ func Test_stats_ConsoleDisplay(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stats := &stats{}
-			stats.Threads = [][]float64{
+			s := &stats{}
+			s.Threads = [][]float64{
 				{124},
 				{146},
 				{197},
@@ -195,7 +195,7 @@ func Test_stats_ConsoleDisplay(t *testing.T) {
 				{4000},
 				{12000},
 			}
-			stats.ConsoleDisplay()
+			s.ConsoleDisplay()
 		})
 	}
 }

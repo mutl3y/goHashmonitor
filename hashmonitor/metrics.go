@@ -78,13 +78,13 @@ func (m *metrics) Config(c *viper.Viper) error {
 	user := c.GetString("Influx.User")
 	pw := c.GetString("Influx.Pw")
 
-	conf := inf.Config{
+	config := inf.Config{
 		URL:      *host,
 		Username: user,
 		Password: pw,
 	}
 
-	m.client, err = inf.NewClient(conf)
+	m.client, err = inf.NewClient(config)
 	if err != nil {
 		return errors.Wrap(err, "NewClient")
 	}
@@ -162,8 +162,8 @@ func (m *metrics) checkDB() error {
 	// 		Command:  fmt.Sprintf("DROP DATABASE %s", m.db),
 	// 		Database: m.db,
 	// 	}
-	// 	results, err := m.client.Query(query)
-	// 	if err != nil || results.Err != nil {
+	// 	checkDBErr, err := m.client.Query(query)
+	// 	if err != nil || checkDBErr.Err != nil {
 	// 		return fmt.Errorf("failed dropping DB %v", err)
 	//
 	// 	}
@@ -175,8 +175,8 @@ func (m *metrics) checkDB() error {
 		Command:  fmt.Sprintf("CREATE DATABASE %s", m.db),
 		Database: m.db,
 	}
-	results, err := m.client.Query(query)
-	if err != nil || results.Err != nil {
+	checkDBErr, err := m.client.Query(query)
+	if err != nil || checkDBErr.Err != nil {
 		return fmt.Errorf("failed creating DB %v", err)
 
 	}
@@ -185,8 +185,8 @@ func (m *metrics) checkDB() error {
 		Command:  fmt.Sprintf("CREATE RETENTION POLICY \"a_year\" ON \"%s\" DURATION 52w REPLICATION 1", m.db),
 		Database: m.db,
 	}
-	results, err = m.client.Query(query)
-	if err != nil || results.Err != nil {
+	checkDBErr, err = m.client.Query(query)
+	if err != nil || checkDBErr.Err != nil {
 		return fmt.Errorf("failed creating retension policy %v", err)
 
 	}
@@ -238,10 +238,10 @@ func (m *metrics) backGroundWriter() {
 
 			// todo move retention policy to config
 			go func(p []inf.Point) {
-				res, err := m.client.Write(inf.BatchPoints{Points: p, Database: m.db, RetentionPolicy: "a_year", Time: time.Now()})
-				if err != nil {
-					log.Errorf("backGroundWriter: %v", err)
-					if strings.Contains(err.Error(), "database not found") {
+				res, funcErr := m.client.Write(inf.BatchPoints{Points: p, Database: m.db, RetentionPolicy: "a_year", Time: time.Now()})
+				if funcErr != nil {
+					log.Errorf("backGroundWriter: %v", funcErr)
+					if strings.Contains(funcErr.Error(), "database not found") {
 						check := m.checkDB()
 						if check != nil {
 							debug("Influx DB issue")
@@ -265,8 +265,8 @@ func (m *metrics) backGroundWriter() {
 		select {
 		case p, ok := <-m.pointsQueue:
 			if !ok {
-				flush(q)
 				debug("Stopping Influx Writer")
+				flush(q)
 				return
 			}
 			q.Lock()
@@ -290,8 +290,11 @@ func (m *metrics) Stop() {
 	// m.done <- true
 	m.mu.Lock()
 	m.enabled = false
+	if m.pointsQueue != nil {
+		close(m.pointsQueue)
+	}
+	// 	m.pointsQueue = nil
 	m.mu.Unlock()
-	m.pointsQueue = nil
 	// close(m.done)
 }
 

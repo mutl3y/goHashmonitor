@@ -42,7 +42,7 @@ func NewTestPlan(n string) *testPlan {
 // Load Loads a testplan from a file, pass true to force new
 func (t *testPlan) Load(force bool) (err error) {
 	if _, err = os.Stat(tpDir); os.IsNotExist(err) {
-		err := os.Mkdir(tpDir, 666)
+		err = os.Mkdir(tpDir, 666)
 		if err != nil {
 			log.Fatalf("failed to mkdir %v", tpDir)
 		}
@@ -137,7 +137,7 @@ func (t *testPlan) Run(c *viper.Viper) (err error) {
 		return fmt.Errorf("intensity.run.start: %v", err)
 	}
 	time.AfterFunc(60*time.Second, func() {
-		err := m.StopMining()
+		err = m.StopMining()
 		if err != nil {
 
 		}

@@ -47,7 +47,7 @@ func newClient(webhook string) *slackhook.Client {
 
 func (api *slackConfig) SendMessage(msg, slType string, ts int) error {
 	m := api.NewMessage(msg)
-
+	
 	m.Text = msg
 	var col string
 	switch slType {
@@ -68,13 +68,13 @@ func (api *slackConfig) SendMessage(msg, slType string, ts int) error {
 		m.IconEmoji = ":white_check_mark:"
 		col = "#41f41d"
 	}
-
+	
 	var authur string
 	authur, err := os.Hostname()
 	if err != nil {
 		authur = "Hashmonitor"
 	}
-
+	
 	var a = slackhook.Attachment{
 		Fallback:   msg,
 		Color:      col,
@@ -91,7 +91,7 @@ func (api *slackConfig) SendMessage(msg, slType string, ts int) error {
 		Footer:     "",
 		Timestamp:  ts,
 	}
-
+	
 	m.AddAttachment(&a)
 	err = api.Client.Send(m)
 	return errors.Wrap(err, "failed sending slack message")

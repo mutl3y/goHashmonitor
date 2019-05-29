@@ -88,21 +88,21 @@ func TestConfigLogger(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			file, err := ioutil.TempFile(testfolder, "*.amdConf")
-			if err != nil {
-				t.Errorf("error creating temp file %v", err)
+			file, configerr := ioutil.TempFile(testfolder, "*.amdConf")
+			if configerr != nil {
+				t.Errorf("error creating temp file %v", configerr)
 			}
 			fn := file.Name()
 
 			if tt.args.existing {
 				if tt.valid {
-					_, err = file.WriteString(conf)
-					if err != nil {
+					_, configerr = file.WriteString(conf)
+					if configerr != nil {
 						t.Errorf("failed writing config to test file")
 					}
 				} else {
-					_, err = file.WriteString(invalidconf)
-					if err != nil {
+					_, configerr = file.WriteString(invalidconf)
+					if configerr != nil {
 						t.Errorf("failed writing config to test file")
 					}
 				}
@@ -110,14 +110,14 @@ func TestConfigLogger(t *testing.T) {
 				file.Close()
 			} else {
 				file.Close()
-				err = os.Remove(file.Name())
-				if err != nil {
-					t.Logf("removal error %v", err)
+				configerr = os.Remove(file.Name())
+				if configerr != nil {
+					t.Logf("removal error %v", configerr)
 				}
 			}
 
-			if err := ConfigLogger(fn, tt.force); (err != nil) != tt.wantErr {
-				t.Errorf("%v:  %v, match %v", tt.name, err, tt.wantErr)
+			if configerr = ConfigLogger(fn, tt.force); (configerr != nil) != tt.wantErr {
+				t.Errorf("%v:  %v, match %v", tt.name, configerr, tt.wantErr)
 			}
 
 		})

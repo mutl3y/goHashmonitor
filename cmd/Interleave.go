@@ -81,9 +81,9 @@ If your miner is not stable for at least 5 minutes you should not run this...`,
 		}
 		if logging {
 			fmt.Println("enabling logging")
-			err := hashmonitor.ConfigLogger("logging.conf", false)
+			err = hashmonitor.ConfigLogger("logging.conf", false)
 			if err != nil {
-				fmt.Println("failed to configure logging %v", err)
+				fmt.Printf("failed to configure logging %v", err)
 			}
 		}
 

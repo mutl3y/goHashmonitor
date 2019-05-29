@@ -3,7 +3,7 @@ package messaging
 import (
 	"testing"
 	"time"
-
+	
 	"github.com/spf13/viper"
 )
 
@@ -32,9 +32,9 @@ func TestLogger_Send(t *testing.T) {
 	c.SetDefault("Core.Log.Dir", "logs")
 	c.SetDefault("Core.Log.File", "hashmonitor.log")
 	c.SetDefault("Core.Log.Rotate", true)
-
+	
 	l := NewLogger(c)
-
+	
 	go l.dispatcher()
 	time.Sleep(time.Second * 1)
 	defer close(l.control)
@@ -46,12 +46,12 @@ func TestLogger_Send(t *testing.T) {
 		priority: 1,
 		silent:   false,
 	}
-
+	
 	for x := 0; x <= 10; x++ {
 		if err := l.Send(m); err != nil {
 			t.Errorf("Failed to send message")
 		}
 	}
-
+	
 	time.Sleep(2 * time.Second)
 }

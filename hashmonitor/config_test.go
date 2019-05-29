@@ -45,9 +45,9 @@ func cleanup(f chan *os.File, stats bool) {
 
 		// return file stats
 		if stats {
-			stat, err := os.Stat(fn.Name())
-			if err != nil {
-				fmt.Printf("failed reading stats %v\n", err)
+			stat, staterr := os.Stat(fn.Name())
+			if staterr != nil {
+				fmt.Printf("failed reading stats %v\n", staterr)
 				return
 			}
 			fmt.Printf(" %v \n %+v", fn.Name(), stat)
@@ -117,9 +117,9 @@ func TestConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wg.Add(1)
-			file, err := ioutil.TempFile(dir, "*.yaml")
-			if err != nil {
-				fmt.Printf("error creating temp file %v", err)
+			file, e := ioutil.TempFile(dir, "*.yaml")
+			if e != nil {
+				fmt.Printf("error creating temp file %v", e)
 			}
 			file.Close()
 			n := file.Name()
@@ -131,9 +131,9 @@ func TestConfig(t *testing.T) {
 			v.Set(tt.name, tt.pair.value)
 
 			// write to disk
-			err = v.WriteConfigAs(v.ConfigFileUsed())
-			if err != nil {
-				t.Errorf("write config failed %v", err)
+			e = v.WriteConfigAs(v.ConfigFileUsed())
+			if e != nil {
+				t.Errorf("write config failed %v", e)
 			}
 
 			// new config
@@ -141,9 +141,9 @@ func TestConfig(t *testing.T) {
 			v2.SetConfigFile(n)
 
 			// read in from disk
-			err = v2.ReadInConfig()
-			if err != nil {
-				t.Errorf("failed reading config %v", err) // handle errors
+			e = v2.ReadInConfig()
+			if e != nil {
+				t.Errorf("failed reading config %v", e) // handle errors
 			}
 
 			var res interface{}

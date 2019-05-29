@@ -3,7 +3,7 @@ package messaging
 import (
 	"testing"
 	"time"
-
+	
 	"github.com/spf13/viper"
 )
 
@@ -31,7 +31,7 @@ func TestSendSlackMessage(t *testing.T) {
 		{"info message", args{"test info message", "info", 0}, false},
 		{"default message", args{"test default message", "other", int(time.Now().Unix())}, false},
 	}
-
+	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := cl.SendMessage(tt.args.msg, tt.args.slType, tt.args.ts); (err != nil) != tt.wantErr {

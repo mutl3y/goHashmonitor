@@ -47,7 +47,7 @@ func Test_ConfigMiner(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.ms.ConfigMiner(tt.cfg)
+			err = tt.ms.ConfigMiner(tt.cfg)
 			if err != nil {
 				if err.Error() != tt.errorMessage {
 					t.Fatalf("%v\n want: %v\n got: %v ", tt.name, tt.errorMessage, err)
@@ -136,7 +136,6 @@ func TestInterleaveFilter(t *testing.T) {
 		{"nan", "9a9|66: 73/1983.20 ms - 2", true},
 		{"nan2", "99|66: 73/1a983.20 ms - 2", true},
 		{"n/a", "N/A ", true},
-		{"", "[2019-05-06 22:03:21] : OpenCL 0|1: auto-tune validate intensity 520|512", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -147,10 +146,6 @@ func TestInterleaveFilter(t *testing.T) {
 	}
 }
 func TestAutotuneFilter(t *testing.T) {
-	// 	d := int64(155332121)
-	if err := ConfigLogger("logging.amdConf", false); err != nil {
-		t.Fatal("failed configuring logger")
-	}
 
 	tests := []struct {
 		name    string

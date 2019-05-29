@@ -132,9 +132,9 @@ func TestExampleClient_Query(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := c.Query("Show Series ", "hashmonitorTest")
-			if err != nil {
-				t.Fatalf("%v", err)
+			res, qErr := c.Query("Show Series ", "hashmonitorTest")
+			if qErr != nil {
+				t.Fatalf("%v", qErr)
 			}
 			t.Logf("response %v", res)
 		})
@@ -186,9 +186,8 @@ func Test_Write(t *testing.T) {
 func Test_metrics_checkDB(t *testing.T) {
 	tdb := "dbd"
 	testCfg.Set("Influx.DB", tdb)
-	err := ConfigLogger("logging.amdConf", false)
 	c := NewMetricsClient()
-	err = c.Config(testCfg)
+	err := c.Config(testCfg)
 	if err != nil {
 		t.Fatalf("failed to configure influx %v", err)
 	}
@@ -208,7 +207,7 @@ func Test_metrics_checkDB(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			if err := c.checkDB(); (err != nil) != tt.wantErr {
+			if err = c.checkDB(); (err != nil) != tt.wantErr {
 				t.Errorf("metrics.checkDB() error = %v, match %v", err, tt.wantErr)
 			}
 		})
@@ -239,7 +238,7 @@ func Test_metrics_Event(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := m.Event(tt.title, tt.text, tt.tags)
+			err = m.Event(tt.title, tt.text, tt.tags)
 			if (err != nil) != tt.wantErr {
 
 				t.Errorf("metrics.Event() error = %v, wantErr %v", err, tt.wantErr)

@@ -90,7 +90,7 @@ func (mc *AmdConf) gpuConfParse(r io.ReadCloser) error {
 
 // amdIntTemplate Generates Config files with Intensity from min to max for cycling through
 func (mc *AmdConf) amdIntTemplate(interleave int, dir string) (str string, err error) {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
+	if _, err = os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 666)
 		if err != nil {
 			log.Fatalf("failed to create directory %v \t%v", dir, err)

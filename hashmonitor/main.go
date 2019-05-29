@@ -6,14 +6,12 @@ import (
 	"time"
 )
 
-// var wg sync.WaitGroup
 type MineSession struct {
 	confFile string
 	api      *apiService
 	ca       *CardData
 	met      *metrics
 	amdConf  AmdConf
-	stop     chan bool
 }
 
 func (s *MineSession) Mine(c *viper.Viper) error {
@@ -43,7 +41,7 @@ func (s *MineSession) Mine(c *viper.Viper) error {
 	tags := map[string]string{"type": "amdConf"}
 	err = s.met.Write("config", tags, s.amdConf.Map())
 	if err != nil {
-		return fmt.Errorf("Failed to write metrics %v", err)
+		return fmt.Errorf("failed to write metrics %v", err)
 	}
 	err = s.met.Event(fmt.Sprintf("%+v", s.amdConf), "", "stak config")
 	if err != nil {

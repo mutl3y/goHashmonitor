@@ -13,8 +13,6 @@ import (
 	"time"
 )
 
-var safeFlush = &sync.Mutex{}
-
 // ApiService implementation interface
 type ApiService interface {
 	Monitor(met *metrics) bool
@@ -59,23 +57,24 @@ func NewStatsService(cfg *viper.Viper) ApiService {
 func (api *apiService) StatsCopy() stats {
 
 	api.Stats.mu.RLock()
-
-	stat := &stats{}
-	*stat = api.Stats.data
+	defer api.Stats.mu.RUnlock()
+	stat := stats{}
+	stat = api.Stats.data
+	if len(stat.Total) == 0 {
+		stat.Total = []float64{0}
+	}
 	// fmt.Printf("api %T %p %v\n", api.Stats.data.Total, &api.Stats.data.Total, api.Stats.data.Total)
 	// fmt.Printf("statscopy %T %p %v\n", stat.Total, &stat.Total, stat.Total)
-	api.Stats.mu.RUnlock()
-	return *stat
+
+	return stat
 }
 
 func (api *apiService) StatsUpdate(s stats) {
-	// 	debug("su %v", *api)
-	api.Stats.mu.Lock()
-	defer api.Stats.mu.Unlock()
 
+	api.Stats.mu.Lock()
 	api.Stats.data.LastUpdate = time.Now()
 	api.Stats.data = s
-
+	api.Stats.mu.Unlock()
 	return
 }
 
@@ -86,8 +85,8 @@ func (api *apiService) Up(b bool) {
 }
 
 func (api *apiService) Status() bool {
-	api.Stats.mu.Lock()
-	defer api.Stats.mu.Unlock()
+	api.Stats.mu.RLock()
+	defer api.Stats.mu.RUnlock()
 	return api.Stats.up
 
 }
@@ -95,7 +94,7 @@ func (api *apiService) Status() bool {
 // Monitor Starts monitoring Stak
 func (api *apiService) Monitor(m *metrics) bool {
 	errChan := make(chan error, 10)
-	go func(err chan error, api *apiService) {
+	go func(errChan chan error, api *apiService) {
 		timeout := time.Duration(100 * time.Millisecond)
 		client := http.Client{
 			Timeout: timeout,
@@ -109,7 +108,7 @@ func (api *apiService) Monitor(m *metrics) bool {
 					return
 				}
 				api.limit.Signal <- true
-				errChan <- fmt.Errorf("capiService.Monitor signal channel closed")
+				errChan <- fmt.Errorf("Service.Monitor signal channel closed")
 				close(errChan)
 				return
 			case <-api.limit.throttle:
@@ -351,7 +350,7 @@ func (stats *stats) ConsoleDisplay() {
 
 	_, _ = tm.Println(ds)
 	_, _ = tm.Println(threads)
-	TmFlush() // Call it every time at the end of rendering
+	tmFlush() // Call it every time at the end of rendering
 	// fmt.Printf("%+v", stats)
 }
 
@@ -390,10 +389,13 @@ Function refresh-Screen{
 
 */
 
-func TmFlush() {
-	safeFlush.Lock()
+var sem = make(chan bool, 1)
+
+func tmFlush() {
+	sem <- true
 	tm.Flush()
-	safeFlush.Unlock()
+	time.Sleep(5 * time.Millisecond)
+	<-sem
 }
 
 func simApi(api *apiService, wg *sync.WaitGroup, startHashRate int, decayRate float64, decayTime time.Duration) {
@@ -401,33 +403,26 @@ func simApi(api *apiService, wg *sync.WaitGroup, startHashRate int, decayRate fl
 	defer ticker.Stop()
 	timeout := time.Now().Add(time.Second * 30)
 
-	stat := rwStats{}
+	stat := &rwStats{}
 	stat.data.Total = []float64{float64(startHashRate)}
 
-	api.StatsUpdate(stat.data)
-	// api.Unlock()
 	wg.Done()
 	for {
 		select {
 		case <-afterTime(timeout):
 			return
 		case <-ticker.C:
-			st := api.StatsCopy()
-			// 	stat.Total = st.Total
-			// fmt.Printf("simApi    %p %v\n", &stat, stat)
-			// 		fmt.Printf("simapi     %T %p %v\n", stat.Total[0], &stat.Total[0], stat.Total[0])
-			// 		fmt.Printf("stp        %T %p %v\n", st.Total, &st.Total, st.Total)
 
-			if len(st.Total) == 0 {
-				st.Total = []float64{0.0}
-			}
+			st := api.StatsCopy()
 			stat.mu.Lock()
-			stat.data.Total[0] = st.Total[0] / decayRate
-			stat.mu.Unlock()
+			stat.data.Total = []float64{st.Total[0] / decayRate}
 			api.StatsUpdate(stat.data)
 			if stat.data.Total[0] <= 10 {
+				stat.mu.Unlock()
 				return
 			}
+			stat.mu.Unlock()
+
 		}
 	}
 

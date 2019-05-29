@@ -24,7 +24,7 @@ import (
 
 var EnableCommandSorting = false
 
-// IntensityCmd represents the tuneIntensity command
+// TuningCmd IntensityCmd represents the tuneIntensity command
 var TuningCmd = &cobra.Command{
 	Use:   "tuningRun",
 	Short: "Tune intensity and worksize",

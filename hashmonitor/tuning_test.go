@@ -11,7 +11,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-func Test_TuningRun(t *testing.T) {
+//noinspection GoSnakeCaseUsage
+func _Test_TuningRun(t *testing.T) {
 	t.Logf("Number of running go routines %v: %v", "before", runtime.NumGoroutine())
 
 	tests := []struct {
@@ -31,9 +32,9 @@ func Test_TuningRun(t *testing.T) {
 		// 	ResetCards: false},
 		// },
 		{"reset Disabled, 10 second runtime", IntensityRun{
-			Intensity: IntRunArgs{Start: 800, Stop: 1900, Inc: 300},
-			Worksize:  IntRunArgs{Start: 8, Stop: 20, Inc: 2},
-			Runtime:   1 * time.Minute,
+			Intensity: IntRunArgs{Start: 800, Stop: 860, Inc: 300},
+			Worksize:  IntRunArgs{Start: 8, Stop: 10, Inc: 2},
+			Runtime:   15 * time.Second,
 			AutoTune:  4, Interleave: 20, AfterAllLock: 10 * time.Second, ResetCards: false},
 		},
 	}
@@ -71,7 +72,7 @@ func Test_TuningRun(t *testing.T) {
 	}
 }
 
-func TestRunMiner(t *testing.T) {
+func _TestRunMiner(t *testing.T) {
 	tcfg, err := Config()
 	if err != nil {
 		t.Fatalf("error configing for test")
@@ -180,12 +181,14 @@ func Test_highestDiv(t *testing.T) {
 			if (got != tt.want) == tt.match {
 				t.Errorf("highestDiv() %v got %v, want %v", tt.name, got, tt.want)
 			} else {
-				t.Logf("wannt %v got %v", tt.want, got)
+				t.Logf("want %v got %v", tt.want, got)
 			}
 		})
 	}
 }
-func Test_InterleaveRun(t *testing.T) {
+
+//noinspection ALL
+func _TestInterleaveSession(t *testing.T) {
 	t.Logf("Number of running go routines %v: %v", "before", runtime.NumGoroutine())
 
 	tests := []struct {
@@ -195,7 +198,7 @@ func Test_InterleaveRun(t *testing.T) {
 
 		{"reset Disabled, 10 second runtime", InterleaveRun{
 			Interleave: IntRunArgs{Start: 20, Stop: 40, Inc: 5},
-			Runtime:    90 * time.Second,
+			Runtime:    10 * time.Second,
 			ResetCards: false},
 		},
 	}
