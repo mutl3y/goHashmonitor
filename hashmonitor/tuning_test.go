@@ -150,7 +150,7 @@ func _TestRunMiner(t *testing.T) {
 			}
 		})
 	}
-	api.stopMonitor(met)
+	api.StopMonitor(met)
 }
 
 func Test_highestDiv(t *testing.T) {

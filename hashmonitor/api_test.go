@@ -2,6 +2,7 @@ package hashmonitor
 
 import (
 	"fmt"
+	"github.com/spf13/viper"
 	_ "net/http"
 	_ "net/http/pprof"
 	"reflect"
@@ -20,7 +21,7 @@ func Test_apiService_Monitor(t *testing.T) {
 	tCfg.Set("Influx.Enabled", true)
 	tCfg.Set("Influx.FlushSec", 2*time.Second)
 
-	// if err := ConfigLogger("logging.amdConf", false); err != nil {
+	// if err := ConfigLogger("logging.AmdConf", false); err != nil {
 	// }
 	fmt.Println(tCfg.GetString(""))
 	as := NewStatsService(tCfg).(*apiService)
@@ -40,7 +41,7 @@ func Test_apiService_Monitor(t *testing.T) {
 			t.Errorf("apiService.Monitor() %v", ok)
 		}
 		time.Sleep(time.Second * 15)
-		if ok := as.stopMonitor(met); ok != true {
+		if ok := as.StopMonitor(met); ok != true {
 			t.Errorf("failed to stop monitor")
 		}
 	})
@@ -65,8 +66,8 @@ func Test_apiService_StopMonitor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.api.Monitor(met)
 
-			if ok := tt.api.stopMonitor(met); (ok != true) != tt.wantErr {
-				t.Errorf("apiService.stopMonitor() error = %v, match %v", ok, tt.wantErr)
+			if ok := tt.api.StopMonitor(met); (ok != true) != tt.wantErr {
+				t.Errorf("apiService.StopMonitor() error = %v, match %v", ok, tt.wantErr)
 			}
 		})
 	}
@@ -81,17 +82,19 @@ func Test_apiService_ShowMonitor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get config")
 	}
-	ss := NewStatsService(c)
+	c.Set("Core.Stak.Ip", "192.168.0.4") // todo
+
+	ss := NewStatsService(c).(*apiService)
+
 	met := &metrics{}
 	ss.Monitor(met)
-	// defer ss.stopMonitor()
 	time.AfterFunc(10*time.Second, func() {
-		ss.stopMonitor(met)
+		ss.StopMonitor(met)
 	})
 
 	tests := []struct {
 		name    string
-		api     ApiService
+		api     *apiService
 		wantErr bool
 	}{
 		{"should work", ss, false},
@@ -99,7 +102,8 @@ func Test_apiService_ShowMonitor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			go tt.api.showMonitor()
+
+			go tt.api.ShowMonitor()
 
 		})
 
@@ -168,7 +172,7 @@ func Test_simApi(t *testing.T) {
 	tcfg, _ := Config()
 	t.Run("simApi", func(t *testing.T) {
 		api := NewStatsService(tcfg).(*apiService)
-		// api.Stats = rwStats{}
+		// Api.Stats = rwStats{}
 		var wg sync.WaitGroup
 		wg.Add(1)
 		simApi(api, &wg, 4000, 1.5, 500*time.Millisecond)
@@ -184,8 +188,9 @@ func Test_stats_ConsoleDisplay(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &stats{}
-			s.Threads = [][]float64{
+			s := NewStatsService(&viper.Viper{}).(*apiService)
+
+			s.Stats.data.Threads = [][]float64{
 				{124},
 				{146},
 				{197},

@@ -5,6 +5,6 @@ package hashmonitor
 // Debug global debugging variable
 var Debug bool
 
-func debug(fmt string, args ...interface{}) {
-	log.Debugf(fmt, args...)
+func debug(f string, args ...interface{}) {
+	log.Debugf(f, args...)
 }

@@ -23,6 +23,24 @@ func newIntensityCounter() *intensityCounter {
 
 var LockCounter = newIntensityCounter()
 
+type hrMon struct {
+	mu                          *sync.RWMutex
+	startingHash, minhash, drop int
+}
+
+func (h *hrMon) min() int {
+	h.mu.RLock()
+	i := h.minhash
+	h.mu.RUnlock()
+	return i
+}
+
+func NewhRMonStruct() hrMon {
+	h := hrMon{}
+	h.mu = &sync.RWMutex{}
+	return h
+}
+
 func (api *apiService) minHash(min int) error {
 	a := api.StatsCopy()
 	if len(a.Total) == 0 {
@@ -32,11 +50,13 @@ func (api *apiService) minHash(min int) error {
 	// fmt.Printf("minhash %T %p %v\n", a.Total[0], &a.Total, a.Total)
 	// fmt.Printf("statscopy %T %p %v\n", stat.Total, &stat.Total, stat.Total)
 
-	if a.Total[0] < float64(min) {
-		return fmt.Errorf("minimum hashrate not met want > %v got %v", float64(min), a.Total[0])
+	for i := 0; i <= 5; i++ {
+		if a.Total[0] >= float64(min) {
+			return nil
+		}
+		time.Sleep(time.Second)
 	}
-
-	return nil
+	return fmt.Errorf("minimum hashrate not Met want > %v got %v", float64(min), a.Total[0])
 }
 
 func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck bool) error {
@@ -48,8 +68,30 @@ func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck b
 	s := api.StatsCopy()
 	if (float64(s.Uptime) >= stableTime.Seconds()) && upCheck {
 		fmt.Println("Stak already up")
+		if api.hrMon.min() == 0 {
+			api.Stats.mu.Lock()
+			api.hrMon.minhash = int(api.Stats.data.Total[0]) - api.hrMon.drop
+			api.Stats.mu.Unlock()
+		}
+
 		return api.minHash(min)
 	}
+
+	var startStakSeconds int
+	for {
+		s := api.StatsCopy()
+		if s.connection.Uptime >= 1 {
+			break
+		}
+		debug("waiting for stak to connect")
+		time.Sleep(time.Second)
+		startStakSeconds++
+		if startStakSeconds >= 10 {
+			break
+		}
+	}
+
+	debug("stak startup time %v", startStakSeconds)
 
 	ticker := time.NewTicker(time.Second)
 	timeout := time.Now().Add(stableTime)
@@ -59,6 +101,13 @@ func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck b
 	for {
 		select {
 		case <-afterTime(timeout):
+			api.Stats.mu.RLock()
+			if len(api.Stats.data.Total) > 0 {
+				api.hrMon.mu.Lock()
+				api.hrMon.minhash = int(api.Stats.data.Total[0]) - api.hrMon.drop
+				api.hrMon.mu.Unlock()
+			}
+			api.Stats.mu.RUnlock()
 			return api.minHash(min)
 		case <-ticker.C:
 			var hr float64
@@ -66,21 +115,22 @@ func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck b
 			if len(s.Total) != 0 {
 				hr = s.Total[0]
 			}
-			tm.Clear()
-			_, _ = tm.Printf("\r%v H/R %v", stableTime.Round(time.Second), hr)
-			tmFlush()
+			fmt.Printf("\rH/R %v, starting monitoring in %v\n", hr, stableTime.Round(time.Second)) // todo
+			//  _, _ = tm.Printf("\r%v H/R %v", stableTime.Round(time.Second), hr)
+			//  tmFlush()
 			stableTime -= time.Second
 		}
 	}
 
 }
 
-func (api *apiService) currentHash(hash, maxErrors int, refresh time.Duration) error {
+func (api *apiService) currentHash(maxErrors int, refresh time.Duration) error {
 	var failures int
 	ticker := time.NewTicker(refresh)
 	// timeout := time.Now().Add(time.Minute * 2)
 	// refresh := time.Now().Add(stableTime)
 	defer ticker.Stop()
+	min := api.hrMon.min()
 
 	for {
 		select {
@@ -88,12 +138,12 @@ func (api *apiService) currentHash(hash, maxErrors int, refresh time.Duration) e
 		// 	// todo remove
 		// 	return nil
 		case <-ticker.C:
-			if err := api.minHash(hash); err != nil {
+			if err := api.minHash(min); err != nil {
 				if err.Error() == "skip" {
 					continue
 				}
 				failures++
-				if failures <= maxErrors {
+				if failures >= maxErrors {
 					return fmt.Errorf("%v", err)
 				}
 				debug("hashrate error ")
@@ -136,7 +186,7 @@ func (api *apiService) tuningHash(runTime, after time.Duration, threads int) err
 			runTime -= time.Second
 			a := api.StatsCopy()
 			LockCounter.mu.Lock()
-
+			tm.Clear()
 			a.TuningConsoleDisplay()
 
 			// setup Threads table
@@ -165,7 +215,7 @@ func (api *apiService) tuningHash(runTime, after time.Duration, threads int) err
 				_, _ = tm.Printf("all thread intensities locked, exiting run at %v\n", lockTimeout.Round(time.Second))
 
 			}
-			tmFlush()
+			// 	tmFlush()
 			t := time.Now()
 			if lockTimeout.Unix() >= 1 {
 				if t.After(lockTimeout) {
@@ -185,7 +235,7 @@ func (api *apiService) tuningHash(runTime, after time.Duration, threads int) err
 
 func (stats *stats) TuningConsoleDisplay() {
 	// 	debug("%T %p %v", stats, stats, stats)
-	tm.Clear()
+
 	tm.MoveCursor(1, 1)
 	ct := fmt.Sprintf("Current Time: %v", time.Now().Format(time.RFC1123))
 	_, _ = tm.Println(tm.Color(ct, tm.GREEN))

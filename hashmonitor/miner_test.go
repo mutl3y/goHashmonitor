@@ -75,9 +75,58 @@ func TestMiner_StartMining_StopMining(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	time.Sleep(3 * time.Second)
-	err = m.StopMining()
+	err = m.StopMining("TestMiner_StartMining_StopMining")
 	if err != nil {
 		t.Fatalf("failed to stop mining process %v", err)
+	}
+
+}
+
+func TestMiner_StartMining_StopMining_Args(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{"samer line multiple fail", []string{"--noNVIDIA--noCPU"}, true},
+		{"same line multiple args", []string{"--noNVIDIA --noCPU"}, false},
+		{"single", []string{"--noNVIDIA"}, false},
+		{"none", []string{}, false},
+		{"sliced strings", []string{"--noNVIDIA", "--noCPU"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := Config()
+			if err != nil {
+				t.Fatalf("Failed to get config %v", err)
+			}
+
+			c.Set("Core.Stak.Args", tt.args)
+
+			m := NewMiner()
+			err = m.ConfigMiner(c)
+			if err != nil {
+				t.Fatalf("Failed configuring miner: %v", err)
+			}
+
+			DebugRaw = true
+
+			err = m.StartMining()
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
+			time.Sleep(2 * time.Second)
+			err = m.CheckStakProcess()
+			if (err != nil) && !tt.wantErr {
+				t.Fatalf("unexpected error %v", err)
+			}
+			err = m.StopMining("TestMiner_StartMining_StopMining")
+			if err != nil {
+				t.Fatalf("failed to stop mining process %v", err)
+			}
+
+		})
 	}
 
 }
@@ -123,7 +172,7 @@ func TestMiner_ConsoleMetrics(t *testing.T) {
 
 func TestInterleaveFilter(t *testing.T) {
 	// 	d := int64(155332121)
-	if err := ConfigLogger("logging.amdConf", false); err != nil {
+	if err := ConfigLogger("logging.AmdConf", false); err != nil {
 		t.Fatal("failed configuring logger")
 	}
 
@@ -161,4 +210,41 @@ func TestAutotuneFilter(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMiner_RunTools(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{"", []string{"OverdriveNTool.exe -consoleonly -r1 -p1XMR"}, true},
+		// {"", []string{"OverdriveNTool.exe -consoleonly -r1 -p1XMR", "OverdriveNTool.exe -consoleonly -r1 -p1XMR", "OverdriveNTool.exe -consoleonly -r1 -p1XMR"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := Config()
+			if err != nil {
+				t.Fatalf("Failed to get config %v", err)
+			}
+
+			c.Set("Core.Stak.Tools", tt.args)
+			c.Set("Core.Stak.Dir", root+"xmr-stak")
+
+			m := NewMiner()
+			err = m.ConfigMiner(c)
+			if err != nil {
+				t.Fatalf("Failed configuring miner: %v", err)
+			}
+
+			DebugRaw = true
+
+			err = m.RunTools()
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
+
+		})
+	}
+
 }

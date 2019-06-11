@@ -17,9 +17,8 @@ type metrics struct {
 	db          string
 	refresh     time.Duration
 	pointsQueue chan inf.Point
-	// done        chan bool
-	enabled bool
-	mu      sync.RWMutex
+	enabled     bool
+	mu          sync.RWMutex
 }
 
 func (m *metrics) Enabled() bool {
@@ -52,9 +51,8 @@ func NewMetricsClient() *metrics {
 // "Influx.DB" string
 // "Influx.FlushSec" time.duration
 func (m *metrics) Config(c *viper.Viper) error {
-	debug("config data %v", c.GetString("Influx.DB"))
+	debug("influxdb: %v", c.GetString("Influx.DB"))
 
-	// debug("config data %T\n%v\n%p\n", cfg, cfg, cfg)
 	if !c.GetBool("Influx.Enabled") {
 		return nil
 	}
@@ -96,7 +94,7 @@ func (m *metrics) Config(c *viper.Viper) error {
 
 	m.db = c.GetString("Influx.DB")
 	if m.db == "" {
-		debug("failed to set Influx DB")
+		debug("you failed to set Influx DB")
 		m.db = "goHashmonitor"
 	}
 
@@ -286,16 +284,9 @@ func (m *metrics) backGroundWriter() {
 	}
 }
 func (m *metrics) Stop() {
-	// debug("%v %T", &m.done, &m.done)
-	// m.done <- true
 	m.mu.Lock()
 	m.enabled = false
-	if m.pointsQueue != nil {
-		close(m.pointsQueue)
-	}
-	// 	m.pointsQueue = nil
 	m.mu.Unlock()
-	// close(m.done)
 }
 
 // Event writes event data to influx using line protocol
@@ -303,7 +294,7 @@ func (m *metrics) Event(title, text, tags string) (err error) {
 	if !m.Enabled() {
 		return nil
 	}
-	debug("met.event() %v, %v, %v", title, text, tags)
+	debug("Met.event() %v, %v, %v", title, text, tags)
 	dd := fmt.Sprintf("events title=%q,text=%q,tags=%q", title, text, tags)
 	_, err = m.client.WriteLineProtocol(dd, m.db, "", "s", "")
 	return err

@@ -15,7 +15,7 @@ import (
 )
 
 func TestDefaultConfig(t *testing.T) {
-	fn := "defaultconfigtest.amdConf"
+	fn := "defaultconfigtest.AmdConf"
 	err := defaultLoggerConfig(fn)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -88,7 +88,7 @@ func TestConfigLogger(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			file, configerr := ioutil.TempFile(testfolder, "*.amdConf")
+			file, configerr := ioutil.TempFile(testfolder, "*.AmdConf")
 			if configerr != nil {
 				t.Errorf("error creating temp file %v", configerr)
 			}
@@ -126,7 +126,7 @@ func TestConfigLogger(t *testing.T) {
 }
 
 func TestSlackMessage(t *testing.T) {
-	// if err := ConfigLogger("logging.amdConf", true); err != nil {
+	// if err := ConfigLogger("logging.AmdConf", true); err != nil {
 	// 	t.Fatal("failed configuring logger")
 	// }
 	l := logrus.StandardLogger()

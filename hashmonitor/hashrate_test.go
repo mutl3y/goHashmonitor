@@ -84,13 +84,14 @@ func Test_stats_currentHash(t *testing.T) {
 		stat := stats{}
 		stat.Total = []float64{float64(tt.hashrate)}
 		api.StatsUpdate(stat)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go simApi(api, &wg, tt.hashrate, tt.decayRate, 502*time.Millisecond)
 		wg.Wait()
 		t.Run(tt.name, func(t *testing.T) {
-
-			if err := api.currentHash(tt.hash, tt.maxErrors, tt.refresh); (err != nil) != tt.wantErr {
+			api.hrMon.minhash = tt.hash
+			if err := api.currentHash(tt.maxErrors, tt.refresh); (err != nil) != tt.wantErr {
 				t.Errorf("stats.currentHash() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

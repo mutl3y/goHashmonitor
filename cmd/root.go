@@ -38,10 +38,16 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	cobra.MousetrapHelpText = "Command line tool, You have to provide parameters"
+	rootCmd.PersistentFlags().BoolP("debugOutput", "d", false, "enable debugging output")
+	rootCmd.PersistentFlags().StringP("stakdirectory", "D", "xmr-stak", "xmr-stak folder, not needed if specified in config file")
+
+	rootCmd.PersistentFlags().BoolP("debugOutput2", "Z", false, "enable debugging output")
+
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+
 	// if cfgFile != "" {
 	// 	// Use config file from the flag.
 	// 	viper.SetConfigFile(cfgFile)

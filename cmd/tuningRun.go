@@ -127,7 +127,6 @@ func init() {
 	TuningCmd.Flags().DurationP("runtime", "R", 60*time.Minute, "runtime ie 10m for ten minutes or 1h for 1 hour")
 	TuningCmd.Flags().IntSliceP("intensity", "I", []int{1000, 2000, 100}, "instensity: start,stop,increment")
 	TuningCmd.Flags().IntSliceP("worksize", "W", []int{4, 18, 2}, "worksize: start,stop,increment")
-	TuningCmd.Flags().StringP("stakdirectory", "D", "xmr-stak", "xmr-stak folder, not needed if specified in config file")
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// IntensityCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")

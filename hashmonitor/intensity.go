@@ -113,7 +113,7 @@ func (t *testPlan) Run(c *viper.Viper) (err error) {
 
 	tst := NewAmdConfig()
 	if err = tst.gpuConfParse(f); err != nil {
-		return fmt.Errorf("tp.run.amdConf %v", err)
+		return fmt.Errorf("tp.run.AmdConf %v", err)
 	}
 
 	var amdFile string
@@ -137,7 +137,7 @@ func (t *testPlan) Run(c *viper.Viper) (err error) {
 		return fmt.Errorf("intensity.run.start: %v", err)
 	}
 	time.AfterFunc(60*time.Second, func() {
-		err = m.StopMining()
+		err = m.StopMining("Run()")
 		if err != nil {
 
 		}

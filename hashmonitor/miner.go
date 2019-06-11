@@ -5,16 +5,20 @@ import (
 	"context"
 	"fmt"
 	"github.com/SkyrisBactera/pkill"
+	pr "github.com/shirou/gopsutil/process"
 	"io"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/viper"
 )
+
+var DebugRaw bool
 
 // var algos = []string{
 // 	"aeon7",
@@ -59,7 +63,10 @@ type miner struct {
 	}
 	tools []string
 	// 	signal     chan struct{}
-	Up, Running bool
+	status struct {
+		Up, Running bool
+		mu          *sync.RWMutex
+	}
 
 	Stop       context.CancelFunc
 	Process    *os.Process
@@ -75,11 +82,11 @@ type Miner interface {
 
 func NewMiner() *miner {
 	m := new(miner)
+	m.status.mu = &sync.RWMutex{}
 	return m
 }
 
 func OSSettings() {
-
 	switch Os := runtime.GOOS; {
 	case Os == "windows":
 
@@ -95,6 +102,34 @@ func OSSettings() {
 	}
 }
 
+func (ms *miner) GetUp() bool {
+	ms.status.mu.RLock()
+	b := ms.status.Up
+	ms.status.mu.RUnlock()
+	return b
+}
+
+func (ms *miner) GetRunnning() bool {
+	ms.status.mu.RLock()
+	b := ms.status.Running
+	ms.status.mu.RUnlock()
+	return b
+}
+
+func (ms *miner) SetUp(b bool) {
+	ms.status.mu.Lock()
+	ms.status.Up = b
+	ms.status.mu.Unlock()
+
+}
+
+func (ms *miner) SetRunning(b bool) {
+	ms.status.mu.Lock()
+	ms.status.Running = b
+	ms.status.mu.Unlock()
+
+}
+
 // ConfigMiner creates the base config, attaches a context and embeds a cancel func in the struct
 func (ms *miner) ConfigMiner(c *viper.Viper) error {
 	ms.config.dir = c.GetString("Core.Stak.Dir")
@@ -105,26 +140,54 @@ func (ms *miner) ConfigMiner(c *viper.Viper) error {
 	if ms.config.exe == "" {
 		return fmt.Errorf("stak Executable Not Specified")
 	}
-	ms.config.args = c.GetStringSlice("Core.Stak.Args")
+	ss := argStringToSlice(c.GetStringSlice("Core.Stak.Args"))
+	ms.config.args = ss
+
+	var str string
+	for _, v := range ss {
+		str += fmt.Sprintf("%v,", v)
+	}
+
+	if str != "" {
+		debug("args %v", str)
+	}
 	ms.config.startAttempts = c.GetInt("Core.Stak.Start_Attempts")
 	ms.tools = c.GetStringSlice("Core.Stak.Tools")
 	ms.ctx, ms.Stop = context.WithCancel(context.Background())
-	ms.Running = true
+	ms.SetRunning(true)
 	return nil
+}
+
+func argStringToSlice(ss []string) []string {
+	rss := make([]string, 0, 30)
+	for _, v := range ss {
+		if strings.Contains(v, " ") {
+			in := strings.Fields(v)
+			for _, iv := range in {
+				rss = append(rss, iv)
+			}
+
+		} else {
+			rss = append(rss, v)
+		}
+	}
+	return rss
+
 }
 
 // StartMining a configured miner
 func (ms *miner) StartMining() error {
 	OSSettings()
 
-	cmd := exec.CommandContext(ms.ctx, ms.config.exe, ms.config.args...)
+	cmd := exec.Command(ms.config.exe, ms.config.args...)
 	cmd.Dir = ms.config.dir
+
 	stdPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdOut pipe, %v", err)
 	}
 
-	if Debug {
+	if DebugRaw {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
@@ -137,15 +200,37 @@ func (ms *miner) StartMining() error {
 	ms.Process = cmd.Process
 	ms.StdOutPipe = &stdPipe
 	debug("Starting STAK process ID %v", ms.Process.Pid)
-	fmt.Println("taking a breath, allowing stak to start, 10 seconds ...")
 
-	time.Sleep(10 * time.Second)
 	return err
 }
-func (ms *miner) StopMining() error {
+
+func (ms *miner) RunTools() error {
+
+	OSSettings()
+
+	for _, tool := range ms.tools {
+		debug("Running Tool %v", tool)
+		fi := strings.Fields(tool)
+
+		cmd := exec.Command("./"+fi[0], fi[1:]...)
+		cmd.Dir = ms.config.dir
+		combinedOutput, err := cmd.CombinedOutput()
+		if err != nil {
+
+		}
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("error executing, \t %v \n%s\n", tool, combinedOutput)
+		}
+	}
+
+	return nil
+}
+
+func (ms *miner) StopMining(caller string) error {
+	debug("%v stopmining", caller)
 	debug("killing process id: %v", ms.Process.Pid)
 	ms.Stop()
-	if ms.Up {
+	if ms.GetUp() {
 		ErrAccess := fmt.Errorf("access is denied")
 		if err := ms.Process.Kill(); err != nil && err != ErrAccess {
 			debug("failed to kill miner %v", err)
@@ -162,12 +247,35 @@ func (ms *miner) StopMining() error {
 	if err != nil && (err.Error() != "exit status 1") {
 		debug("pkill error %v %v", exe, err)
 	}
-	ms.Running = false
+
+	ms.SetRunning(false)
 
 	return nil
 }
 
-func (ms *miner) killStak() error {
+func (m *miner) CheckStakProcess() error {
+	if m.Process == nil {
+
+		return fmt.Errorf("no process being tracked")
+	}
+
+	pid := int32(m.Process.Pid)
+	procExists, err := pr.PidExists(pid)
+	if err != nil {
+		return err
+	}
+
+	if procExists {
+		debug("process is running")
+		return nil
+	}
+
+	return fmt.Errorf("process does not exist")
+
+}
+
+func (ms *miner) killStak(caller string) error {
+
 	exe := ms.config.exe
 	if exe == "" {
 		return fmt.Errorf("exe not specified")
@@ -175,12 +283,12 @@ func (ms *miner) killStak() error {
 	exe = strings.ReplaceAll(exe, "./", "")
 
 	_, _ = pkill.Pkill(exe)
+	debug("%v killing %v", caller, exe)
 
 	return nil
 }
 
 func (ms *miner) ConsoleMetrics(met *metrics) {
-
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Errorf("failed to set hostname %v", err)
@@ -213,7 +321,7 @@ func (ms *miner) ConsoleMetrics(met *metrics) {
 			}
 			debug("ConsoleMetrics %+v %+v", tags, m)
 		}
-		if !ms.Running {
+		if !ms.GetRunnning() {
 			fmt.Println("miner not running")
 			break
 		}
@@ -229,6 +337,13 @@ func (ms *miner) ConsoleMetrics(met *metrics) {
 func conParse(b []byte) (m map[string]interface{}, err error) {
 	m = map[string]interface{}{}
 	s := string(b)
+	if Debug {
+		fmt.Println(s)
+	}
+
+	if strings.Contains(s, "Parameter unknown") {
+		return nil, fmt.Errorf("failed to start mining, parametrer issue: %v ", s)
+	}
 	// fmt.Println(s)
 	if !strings.HasPrefix(s, "[") {
 		return m, fmt.Errorf("no match")

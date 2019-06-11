@@ -144,7 +144,7 @@ func TestExampleClient_Query(t *testing.T) {
 func Test_Write(t *testing.T) {
 	tdb := "hashmonitorTest2"
 	testCfg.Set("Influx.DB", tdb)
-	err := ConfigLogger("logging.amdConf", false)
+	err := ConfigLogger("logging.AmdConf", false)
 	c := NewMetricsClient()
 	err = c.Config(testCfg)
 	if err != nil {
@@ -217,9 +217,9 @@ func Test_metrics_checkDB(t *testing.T) {
 func Test_metrics_Event(t *testing.T) {
 	tdb := "testMine"
 	testCfg.Set("Influx.DB", tdb)
-	err := ConfigLogger("logging.amdConf", false)
+	err := ConfigLogger("logging.AmdConf", false)
 	if err != nil {
-		t.Fatalf("amdConf log issue %v", err)
+		t.Fatalf("AmdConf log issue %v", err)
 	}
 	m := NewMetricsClient()
 	err = m.Config(testCfg)

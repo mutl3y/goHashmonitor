@@ -16,25 +16,28 @@ import (
 // ApiService implementation interface
 type ApiService interface {
 	Monitor(met *metrics) bool
-	stopMonitor(met *metrics) bool
-	showMonitor()
+	StopMonitor(met *metrics) bool
+	ShowMonitor()
 }
 type apiService struct {
 	URL    string
 	Signal chan bool
 	limit  *simpleRateLimit
 	Stats  *rwStats
+	hrMon  hrMon
 }
 
-// NewStatsService returns a monitoring service with rate limiter
+// newStatsService returns a monitoring service with rate limiter
 // takes settings from viper config
 func NewStatsService(cfg *viper.Viper) ApiService {
 	Signal := make(chan bool)
 	apiIp := cfg.GetString("Core.Stak.Ip")
 	apiPort := cfg.GetInt64("Core.Stak.Port")
-	apiUrl := fmt.Sprintf("http://%v:%v/api.json", apiIp, apiPort)
+	apiUrl := fmt.Sprintf("http://%v:%v/Api.json", apiIp, apiPort)
 
-	debug("NewStatsService, %v:%v ", apiIp, apiPort)
+	debug("newStatsService, %v:%v ", apiIp, apiPort)
+	hrmon := NewhRMonStruct()
+	hrmon.drop = cfg.GetInt("Core.Hash.Drop")
 
 	// Start a refresh limiter
 	minlimit := time.Millisecond * 500
@@ -51,6 +54,7 @@ func NewStatsService(cfg *viper.Viper) ApiService {
 		Signal: Signal,
 		limit:  limit,
 		Stats:  new(rwStats),
+		hrMon:  hrmon,
 	}
 }
 
@@ -63,7 +67,7 @@ func (api *apiService) StatsCopy() stats {
 	if len(stat.Total) == 0 {
 		stat.Total = []float64{0}
 	}
-	// fmt.Printf("api %T %p %v\n", api.Stats.data.Total, &api.Stats.data.Total, api.Stats.data.Total)
+	// fmt.Printf("Api %T %p %v\n", Api.Stats.data.Total, &Api.Stats.data.Total, Api.Stats.data.Total)
 	// fmt.Printf("statscopy %T %p %v\n", stat.Total, &stat.Total, stat.Total)
 
 	return stat
@@ -81,17 +85,30 @@ func (api *apiService) StatsUpdate(s stats) {
 func (api *apiService) Up(b bool) {
 	api.Stats.mu.Lock()
 	api.Stats.up = b
+	api.Stats.statusChangeTime = time.Now()
 	api.Stats.mu.Unlock()
 }
 
-func (api *apiService) Status() bool {
+func (api *apiService) Status() (ok bool) {
 	api.Stats.mu.RLock()
 	defer api.Stats.mu.RUnlock()
-	return api.Stats.up
-
+	ok = api.Stats.up
+	return
 }
 
-// Monitor Starts monitoring Stak
+func (api *apiService) CheckApi(checks int, sleepTime time.Duration) error {
+
+	for i := 0; i <= checks; i++ {
+		d := api.Status()
+		if d {
+			return nil
+		}
+		time.Sleep(sleepTime)
+	}
+
+	return fmt.Errorf("stak has stopped responding")
+}
+
 func (api *apiService) Monitor(m *metrics) bool {
 	errChan := make(chan error, 10)
 	go func(errChan chan error, api *apiService) {
@@ -112,10 +129,12 @@ func (api *apiService) Monitor(m *metrics) bool {
 				close(errChan)
 				return
 			case <-api.limit.throttle:
-
+				out := stats{}
 				res, err := client.Get(api.URL)
 				if err != nil {
 					if strings.Contains(err.Error(), timeoutError) {
+						api.StatsUpdate(out)
+						api.Up(false)
 						continue
 					}
 					errChan <- fmt.Errorf("error connecting: %v", err)
@@ -133,7 +152,6 @@ func (api *apiService) Monitor(m *metrics) bool {
 					continue
 				}
 
-				out := stats{}
 				err = json.Unmarshal(body, &out)
 				if err != nil {
 					fmt.Println(err)
@@ -191,24 +209,21 @@ func (api *apiService) Monitor(m *metrics) bool {
 	return true
 }
 
-func (api *apiService) stopMonitor(m *metrics) bool {
+func (api *apiService) StopMonitor(m *metrics) bool {
 	debug("stopping Stats Service")
 	api.Signal <- true
 	m.Stop()
 	return true
 }
 
-func (api *apiService) showMonitor() {
+func (api *apiService) ShowMonitor() {
 	limit := newLimiter(1005 * time.Millisecond)
 	go limitClock(limit)
 
 	for {
 		select {
 		case <-limit.throttle:
-			a := api.StatsCopy()
-			if api.Status() {
-				a.ConsoleDisplay()
-			}
+			api.ConsoleDisplay()
 		case _, ok := <-api.Signal:
 			if !ok {
 				return
@@ -219,7 +234,7 @@ func (api *apiService) showMonitor() {
 	}
 }
 
-// stak api data structs
+// stak Api data structs
 type errorLog struct {
 	Count    int    `json:"count"`
 	LastSeen int    `json:"last_seen"`
@@ -261,9 +276,10 @@ type stats struct {
 // 	Unlock()
 // }
 type rwStats struct {
-	mu   sync.RWMutex
-	data stats
-	up   bool
+	mu               sync.RWMutex
+	data             stats
+	up               bool
+	statusChangeTime time.Time
 }
 
 // Map returns a map version of stats data for metrics.go
@@ -301,8 +317,12 @@ func (stats *stats) threadMapSlice() []map[string]interface{} {
 	return ms
 }
 
-func (stats *stats) ConsoleDisplay() {
+func (api *apiService) ConsoleDisplay() {
 	// 	debug("%T %p %v", stats, stats, stats)
+	api.Stats.mu.RLock()
+	defer api.Stats.mu.RUnlock()
+	s := api.Stats.data
+
 	tm.Clear()
 	tm.MoveCursor(1, 1)
 	ct := fmt.Sprintf("Current Time: %v", time.Now().Format(time.RFC1123))
@@ -310,12 +330,12 @@ func (stats *stats) ConsoleDisplay() {
 	_, _ = tm.Println()
 
 	// normalise fields for printing
-	if len(stats.Total) == 0 {
-		stats.Total = []float64{0}
+	if len(s.Total) == 0 {
+		s.Total = []float64{0}
 	}
 
-	if stats.connection.Pool == "" {
-		stats.connection.Pool = "Not Connected"
+	if s.connection.Pool == "" {
+		s.connection.Pool = "Not Connected"
 	}
 
 	// setup Threads table
@@ -325,7 +345,7 @@ func (stats *stats) ConsoleDisplay() {
 	_, _ = fmt.Fprintf(threads, "Thread\tHashrate\n")
 
 	// add threads
-	for i, v := range stats.Threads {
+	for i, v := range s.Threads {
 		_, _ = fmt.Fprintf(threads, "%v\t%v\n", i, v[0])
 	}
 
@@ -335,17 +355,19 @@ func (stats *stats) ConsoleDisplay() {
 	// _, _ = fmt.Fprintf(ds,	"Starting Hash Rate","$script:maxhash H/s")
 	// _, _ = fmt.Fprintf(ds,"Restart Hash Rate"="$script:rTarget H/s"
 
-	_, _ = fmt.Fprintln(ds, "Total H/R\t", stats.Total[0])
-	// _, _ = fmt.Fprintf(ds,"Minimum Hash Rate"="$script:minhashrate H/s"
+	_, _ = fmt.Fprintln(ds, "Total H/R\t", s.Total[0])
+
+	_, _ = fmt.Fprintln(ds, "Minimum Hash Rate\t", api.hrMon.min())
+
 	// _, _ = fmt.Fprintf(ds,"Monitoring Uptime"="$tmRunTime"
 
-	_, _ = fmt.Fprintln(ds, "Pool\t", stats.connection.Pool)
-	_, _ = fmt.Fprintln(ds, "Uptime\t", stats.connection.Uptime)
-	_, _ = fmt.Fprintln(ds, "Difficulty\t", stats.DiffCurrent)
-	_, _ = fmt.Fprintln(ds, "Total Shares\t", stats.SharesTotal)
-	_, _ = fmt.Fprintln(ds, "Good Shares\t", stats.SharesGood)
+	_, _ = fmt.Fprintln(ds, "Pool\t", s.connection.Pool)
+	_, _ = fmt.Fprintln(ds, "Uptime\t", time.Duration(float64(s.connection.Uptime))*time.Second)
+	_, _ = fmt.Fprintln(ds, "Difficulty\t", s.DiffCurrent)
+	_, _ = fmt.Fprintln(ds, "Total Shares\t", s.SharesTotal)
+	_, _ = fmt.Fprintln(ds, "Good Shares\t", s.SharesGood)
 	// _, _ = fmt.Fprintf(ds,"Good Share Percent"
-	_, _ = fmt.Fprintln(ds, "Share Time\t", stats.AvgTime)
+	_, _ = fmt.Fprintln(ds, "Share Time\t", s.AvgTime)
 	_, _ = fmt.Fprintln(ds)
 
 	_, _ = tm.Println(ds)
@@ -394,7 +416,7 @@ var sem = make(chan bool, 1)
 func tmFlush() {
 	sem <- true
 	tm.Flush()
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	<-sem
 }
 

@@ -15,7 +15,10 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
+	"goHashmonitor/hashmonitor"
+	"log"
 )
 
 // mineCmd represents the mine command
@@ -27,12 +30,48 @@ This will start a mining session ignoring any profit mining features
 hashrate drop and restart options are still valid
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		// hashmonitor.RunMiner()
+		fmt.Println("standard mining mode")
+		c, err := hashmonitor.Config()
+		if err != nil {
+			fmt.Println("config file issue", err)
+
+			return
+		}
+
+		fname := c.GetString("Core.Log.Configfile")
+		err = hashmonitor.ConfigLogger(fname, false)
+		if err != nil {
+			fmt.Println("issue configuring logging", err)
+			return
+		}
+
+		flags := rootCmd.Flags()
+		hashmonitor.Debug, err = flags.GetBool("debugOutput")
+		if err != nil {
+			fmt.Printf("error setting debug flag %v", err)
+		}
+
+		err = c.BindPFlag("Core.Stak.Dir", cmd.Flags().Lookup("stakdirectory"))
+		if err != nil {
+			fmt.Printf("unable to set stak directory in config %v", err)
+		}
+
+		ms, err := hashmonitor.NewMineSession(c)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+
+		ms.Api.Monitor(ms.Met)
+		defer ms.Api.StopMonitor(ms.Met)
+		err = ms.Mine()
+		if err != nil {
+			fmt.Printf("error mining %v", err)
+		}
 	},
 }
 
 func init() {
-	// 	rootCmd.AddCommand(mineCmd)
+	rootCmd.AddCommand(mineCmd)
 
 	// Here you will define your flags and configuration settings.
 

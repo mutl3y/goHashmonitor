@@ -64,7 +64,9 @@ func DefaultConfig() *viper.Viper {
 	c.SetDefault("Core.Debug", false)
 	c.SetDefault("Core.Display.Destination", "Local")
 	c.SetDefault("Core.Display.Port", 8080)
-	c.SetDefault("Core.Log.Configfile", "logging.amdConf")
+	c.SetDefault("Core.Hash.Drop", 50)
+	c.SetDefault("Core.Hash.Min", 200)
+	c.SetDefault("Core.Log.Configfile", "logging.conf")
 	// c.SetDefault("Core.Log.File", "hashmonitor.log")
 	// c.SetDefault("Core.Log.Rotate", true)
 	// c.SetDefault("Core.Log.Rotate_Hours", 24)
@@ -76,17 +78,16 @@ func DefaultConfig() *viper.Viper {
 	c.SetDefault("Core.Stak.Exe", "./xmr-stak.exe")
 	c.SetDefault("Core.Stak.Ip", "127.0.0.1")
 
-	c.SetDefault("Core.Stak.Refresh_MS", time.Millisecond*500)
+	c.SetDefault("Core.Stak.Refresh_Time", time.Millisecond*500)
 	c.SetDefault("Core.Stak.Timeout", 2)
 	c.SetDefault("Core.Stak.Start_Attempts", 3)
-	c.SetDefault("Core.Stak.Stable_Secs", 60*time.Second)
+	c.SetDefault("Core.Stak.Stable_Time", 30*time.Second)
 	c.SetDefault("Core.Stak.Seconds_Before_Rate_check", 20)
 	c.SetDefault("Core.Stak.Tools", []string{
 		"OverdriveNTool.exe -consoleonly -r1 -p1XMR",
 		"OverdriveNTool.exe -consoleonly -r2 -p2XMR",
 	})
 
-	c.SetDefault("Device.Hash_Drop", 300)
 	c.SetDefault("Device.Reset.Enabled", false)
 	c.SetDefault("Device.Reset.OnStartup", false)
 	c.SetDefault("Device.Reset.Interval", 3)

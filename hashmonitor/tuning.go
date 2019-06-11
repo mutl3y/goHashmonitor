@@ -32,7 +32,7 @@ func TuningRun(c *viper.Viper, run IntensityRun) error {
 		return fmt.Errorf("must provide worksize settings")
 	}
 
-	// err := ConfigLogger("logging.amdConf", false)
+	// err := ConfigLogger("logging.AmdConf", false)
 	// if err != nil {
 	// 	fmt.Printf("failed to configure logging")
 	// }
@@ -132,7 +132,7 @@ func TuningRun(c *viper.Viper, run IntensityRun) error {
 		fmt.Println()
 	}
 
-	defer api.stopMonitor(met)
+	defer api.StopMonitor(met)
 
 	return nil
 }
@@ -165,13 +165,13 @@ func RunMiner(s tuneSession, c *viper.Viper) error {
 		return fmt.Errorf("Failed configuring miner: %v\n", err)
 	}
 
-	err = m.killStak()
+	err = m.killStak("RunMiner")
 	if err != nil {
 		log.Errorf("kilstak %v", err)
 	}
 
 	// write amd.conf to influx
-	tags := map[string]string{"type": "amdConf"}
+	tags := map[string]string{"type": "AmdConf"}
 	err = s.met.Write("config", tags, s.amdConf.Map())
 	if err != nil {
 		return fmt.Errorf("failed to write metrics %v", err)
@@ -207,7 +207,7 @@ func RunMiner(s tuneSession, c *viper.Viper) error {
 	if err != nil {
 		return fmt.Errorf("tuningHash %v", err)
 	}
-	if err = m.StopMining(); err != nil {
+	if err = m.StopMining("RunMiner()"); err != nil {
 		return fmt.Errorf("failed to stop miner %v\n", err)
 	}
 
@@ -292,7 +292,7 @@ func InterleaveSession(c *viper.Viper, run InterleaveRun) error {
 		}
 	}
 
-	api.stopMonitor(met)
+	api.StopMonitor(met)
 
 	return nil
 }
