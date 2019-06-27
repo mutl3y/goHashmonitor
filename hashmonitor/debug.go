@@ -1,8 +1,6 @@
-// +build debug
+// +build debuglocaL
 
 package hashmonitor
-
-import "fmt"
 
 // Debug global debugging variable
 var Debug bool

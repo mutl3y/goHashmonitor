@@ -107,7 +107,13 @@ func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck b
 				api.hrMon.minhash = int(api.Stats.data.Total[0]) - api.hrMon.drop
 				api.hrMon.mu.Unlock()
 			}
+			if !api.Status() {
+				return fmt.Errorf("error connecting to Stak")
+			}
+			api.hrMon.mu.Lock()
+			api.hrMon.startingHash = api.hrMon.minhash
 			api.Stats.mu.RUnlock()
+			api.hrMon.mu.Unlock()
 			return api.minHash(min)
 		case <-ticker.C:
 			var hr float64

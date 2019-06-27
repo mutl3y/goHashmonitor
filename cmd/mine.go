@@ -46,14 +46,28 @@ hashrate drop and restart options are still valid
 		}
 
 		flags := rootCmd.Flags()
+
+		err = c.BindPFlag("Core.Stak.Dir", cmd.Flags().Lookup("stakdirectory"))
+		if err != nil {
+			fmt.Printf("unable to set stak directory in config %v", err)
+		}
+
+		err = c.BindPFlag("Core.DebugMessageInterval", cmd.Flags().Lookup("consolidate"))
+		if err != nil {
+			fmt.Printf("unable to set debug message consolidation %v", err)
+		}
+
 		hashmonitor.Debug, err = flags.GetBool("debugOutput")
 		if err != nil {
 			fmt.Printf("error setting debug flag %v", err)
 		}
 
-		err = c.BindPFlag("Core.Stak.Dir", cmd.Flags().Lookup("stakdirectory"))
+		d := hashmonitor.NewDebugGrouper(c)
+		defer d.Stop()
+
+		hashmonitor.DebugRaw, err = flags.GetBool("stakOutput")
 		if err != nil {
-			fmt.Printf("unable to set stak directory in config %v", err)
+			fmt.Printf("error setting stakOutput flag %v", err)
 		}
 
 		ms, err := hashmonitor.NewMineSession(c)

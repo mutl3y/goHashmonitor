@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -120,9 +121,10 @@ type devConCard struct {
 }
 
 type CardData struct {
-	cards        []devConCard
-	dir          string
-	resetEnabled bool
+	cards                        []devConCard
+	dir                          string
+	resetEnabled, resetOnStartUp bool
+	expectedCards                int
 }
 
 func NewCardData(c *viper.Viper) *CardData {
@@ -130,6 +132,8 @@ func NewCardData(c *viper.Viper) *CardData {
 	// 	d.cards  =	make([]devConCard, 0, 20)
 	d.dir = c.GetString("Core.Stak.Dir")
 	d.resetEnabled = c.GetBool("Device.Reset.Enabled")
+	d.expectedCards = c.GetInt("Device.ExpectedCards")
+	d.resetOnStartUp = c.GetBool("Device.Reset.OnStartup")
 	return d
 }
 
@@ -154,24 +158,28 @@ func (ca *CardData) GetStatus() error {
 
 		by, err := winCmd(ca.dir, "devcon.exe status =display")
 		if err != nil {
-			log.Errorf("error reseting cards %v", err)
+			log.Errorf("error getting status %v", err)
 		}
 
 		err = ca.devConParse(by)
 		if err != nil {
 			log.Errorf("error parsing devcon output:  %v", err)
 		}
-		return errors.Wrap(err, "failed updating device status")
 	case Os == "linux":
 
 		fmt.Println("device reset not available in Linux version")
 
-		return nil
 	default:
 		return fmt.Errorf("%v not supported", Os)
 	}
 
+	if len(ca.cards) < ca.expectedCards {
+		return fmt.Errorf("card missing")
+	}
+
+	return nil
 }
+
 func (ca *CardData) ResetCards(force bool) error {
 	if !ca.resetEnabled {
 		return nil
@@ -192,6 +200,7 @@ func (ca *CardData) ResetCards(force bool) error {
 				if err != nil {
 					return errors.Wrap(err, fmt.Sprintf("failed resetting device %v", v.name))
 				}
+				time.Sleep(3 * time.Second)
 			}
 		}
 	default:

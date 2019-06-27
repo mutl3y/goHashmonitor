@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -38,10 +39,10 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	cobra.MousetrapHelpText = "Command line tool, You have to provide parameters"
-	rootCmd.PersistentFlags().BoolP("debugOutput", "d", false, "enable debugging output")
+	rootCmd.PersistentFlags().BoolP("debugOutput", "d", false, "enable debugging output, disables on screen stats")
+	rootCmd.PersistentFlags().DurationP("consolidate", "c", 10*time.Second, "consolidate debug messages by time period, eg: 1m2s")
 	rootCmd.PersistentFlags().StringP("stakdirectory", "D", "xmr-stak", "xmr-stak folder, not needed if specified in config file")
-
-	rootCmd.PersistentFlags().BoolP("debugOutput2", "Z", false, "enable debugging output")
+	rootCmd.PersistentFlags().BoolP("stakOutput", "Z", false, "enable stak debugging output, very verbose")
 
 }
 

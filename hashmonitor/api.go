@@ -318,6 +318,12 @@ func (stats *stats) threadMapSlice() []map[string]interface{} {
 }
 
 func (api *apiService) ConsoleDisplay() {
+	api.hrMon.mu.RLock()
+	defer api.hrMon.mu.RUnlock()
+	if api.hrMon.startingHash == 0 {
+		return
+	}
+
 	// 	debug("%T %p %v", stats, stats, stats)
 	api.Stats.mu.RLock()
 	defer api.Stats.mu.RUnlock()

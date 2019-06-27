@@ -18,14 +18,36 @@ func TestDevCon(t *testing.T) {
 }
 
 func TestGetStatus(t *testing.T) {
-	config, _ := Config()
-	cd := NewCardData(config)
+	cardcount := func() int {
+		config, _ := Config()
+		cd := NewCardData(config)
+		err := cd.GetStatus()
+		if err != nil {
 
-	err := cd.GetStatus()
-	if err == nil {
-		for k, v := range cd.cards {
-			fmt.Printf("Card-%v %+v %+v\n", k, v.name, v.running)
 		}
+		return len(cd.cards)
+	}()
+
+	tests := []struct {
+		name    string
+		cd      int
+		wantErr bool
+	}{
+		{"extracard", cardcount - 1, false},
+		{"cards found", cardcount, false},
+		{"missinng card", cardcount + 1, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, _ := Config()
+			cd := NewCardData(config)
+			cd.cards = make([]devConCard, tt.cd, 10)
+			err := cd.GetStatus()
+			if (err != nil) && !tt.wantErr {
+				t.Fatalf("err %v", err)
+			}
+
+		})
 	}
 }
 

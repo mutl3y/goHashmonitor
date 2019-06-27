@@ -51,8 +51,6 @@ func NewMetricsClient() *metrics {
 // "Influx.DB" string
 // "Influx.FlushSec" time.duration
 func (m *metrics) Config(c *viper.Viper) error {
-	debug("influxdb: %v", c.GetString("Influx.DB"))
-
 	if !c.GetBool("Influx.Enabled") {
 		return nil
 	}
@@ -188,7 +186,6 @@ func (m *metrics) checkDB() error {
 		return fmt.Errorf("failed creating retension policy %v", err)
 
 	}
-	debug("influxdb ok")
 	return err
 }
 
@@ -236,7 +233,7 @@ func (m *metrics) backGroundWriter() {
 
 			// todo move retention policy to config
 			go func(p []inf.Point) {
-				res, funcErr := m.client.Write(inf.BatchPoints{Points: p, Database: m.db, RetentionPolicy: "a_year", Time: time.Now()})
+				_, funcErr := m.client.Write(inf.BatchPoints{Points: p, Database: m.db, RetentionPolicy: "a_year", Time: time.Now()})
 				if funcErr != nil {
 					log.Errorf("backGroundWriter: %v", funcErr)
 					if strings.Contains(funcErr.Error(), "database not found") {
@@ -247,10 +244,6 @@ func (m *metrics) backGroundWriter() {
 							return
 						}
 					}
-				}
-				if Debug {
-					debug("client write: %+v\n", p)
-					debug("response %v\n", res)
 				}
 			}(p)
 

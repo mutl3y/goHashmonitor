@@ -34,16 +34,19 @@ func ConfigLogger(fn string, force bool) (err error) {
 		}
 	}()
 	cfn := logrus_mate.ConfigFile(fn)
+
 	mate, err := logrus_mate.NewLogrusMate(cfn)
 	if err != nil {
 		fmt.Println("log config error")
 		return errors.Wrapf(err, "%v", mate)
 	}
+
 	if err = mate.Hijack(log, c); err != nil {
 		return errors.Wrapf(err, "failed to find log config '%v' in %v\n", c, fn)
 
 	}
 
+	log.SetReportCaller(false)
 	return errors.Wrapf(err, "%v", mate)
 }
 
@@ -75,10 +78,14 @@ hashmonitor{
 hooks{
 	expander{}
 	file{
-		level = 0
+		level = 3
 		filename = "hashmonitor.log"
 		daily = true
-		rotate = true
+		rotate = false
+		maxlines = 10000
+		maxdays = 2
+		perm = 0600
+		maxsize  = 1024
 		}
 	slack {
         url      = "https://hooks.slack.com/services/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"

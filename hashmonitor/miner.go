@@ -149,7 +149,7 @@ func (ms *miner) ConfigMiner(c *viper.Viper) error {
 	}
 
 	if str != "" {
-		debug("args %v", str)
+		debug("running with args %v", str)
 	}
 	ms.config.startAttempts = c.GetInt("Core.Stak.Start_Attempts")
 	ms.tools = c.GetStringSlice("Core.Stak.Tools")
@@ -187,11 +187,6 @@ func (ms *miner) StartMining() error {
 		return fmt.Errorf("failed to create stdOut pipe, %v", err)
 	}
 
-	if DebugRaw {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
 	if err = cmd.Start(); err != nil {
 		debug("%+v", cmd)
 		return fmt.Errorf("failed to start mining process, %v", err)
@@ -199,7 +194,7 @@ func (ms *miner) StartMining() error {
 
 	ms.Process = cmd.Process
 	ms.StdOutPipe = &stdPipe
-	debug("Starting STAK process ID %v", ms.Process.Pid)
+	log.Infof("Starting STAK process ID %v", ms.Process.Pid)
 
 	return err
 }
@@ -209,18 +204,18 @@ func (ms *miner) RunTools() error {
 	OSSettings()
 
 	for _, tool := range ms.tools {
-		debug("Running Tool %v", tool)
+		log.Infof("Running Tool %v", tool)
 		fi := strings.Fields(tool)
 
 		cmd := exec.Command("./"+fi[0], fi[1:]...)
 		cmd.Dir = ms.config.dir
 		combinedOutput, err := cmd.CombinedOutput()
 		if err != nil {
-
+			return fmt.Errorf("error executing, %v \n%s", tool, combinedOutput)
 		}
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("error executing, \t %v \n%s\n", tool, combinedOutput)
-		}
+		// if err := cmd.Run(); err != nil {
+		// 	return fmt.Errorf("error executing, %v %v\n%s", tool, combinedOutput, err)
+		// }
 	}
 
 	return nil
@@ -228,12 +223,12 @@ func (ms *miner) RunTools() error {
 
 func (ms *miner) StopMining(caller string) error {
 	debug("%v stopmining", caller)
-	debug("killing process id: %v", ms.Process.Pid)
+	log.Infof("killing process id: %v", ms.Process.Pid)
 	ms.Stop()
 	if ms.GetUp() {
 		ErrAccess := fmt.Errorf("access is denied")
 		if err := ms.Process.Kill(); err != nil && err != ErrAccess {
-			debug("failed to kill miner %v", err)
+			log.Errorf("failed to kill miner %v", err)
 			return err
 		}
 	}
@@ -284,6 +279,7 @@ func (ms *miner) killStak(caller string) error {
 
 	_, _ = pkill.Pkill(exe)
 	debug("%v killing %v", caller, exe)
+	time.Sleep(2 * time.Second)
 
 	return nil
 }
@@ -337,8 +333,8 @@ func (ms *miner) ConsoleMetrics(met *metrics) {
 func conParse(b []byte) (m map[string]interface{}, err error) {
 	m = map[string]interface{}{}
 	s := string(b)
-	if Debug {
-		fmt.Println(s)
+	if DebugRaw {
+		debug("%v", s)
 	}
 
 	if strings.Contains(s, "Parameter unknown") {
@@ -401,7 +397,7 @@ func conParse(b []byte) (m map[string]interface{}, err error) {
 				}
 			} else {
 
-				debug("conParse unparsed openCl %v\n", s)
+				log.Infof("conParse unparsed openCl %v\n", s)
 			}
 		}
 	case "Mini":

@@ -5,19 +5,22 @@ import (
 	"github.com/spf13/viper"
 	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 )
 
 type MineSession struct {
-	confFile                              string
-	Api                                   *apiService
-	ca                                    *CardData
-	Met                                   *metrics
-	m                                     *miner
-	AmdConf                               AmdConf
-	startFailures, minHashRate, maxErrors int
-	stableTime, refreshTime               time.Duration
+	confFile, intCheckUrl                              string
+	Api                                                *apiService
+	ca                                                 *CardData
+	Met                                                *metrics
+	m                                                  *miner
+	AmdConf                                            AmdConf
+	startFailures, minHashRate, maxErrors, restartWait int
+	stableTime, refreshTime, intHttpTimeout            time.Duration
+	resetEnabled                                       bool
 }
 
 func NewMineSession(v *viper.Viper) (*MineSession, error) {
@@ -50,21 +53,25 @@ func NewMineSession(v *viper.Viper) (*MineSession, error) {
 	}
 
 	ms.AmdConf = NewAmdConfig()
-	if err = ms.AmdConf.gpuConfParse(f); err != nil {
-		log.Fatalf("AmdConf.gpuConfParse() error = %v", err)
+	if err = ms.AmdConf.Read(f); err != nil {
+		log.Fatalf("AmdConf.Read() error = %v", err)
 	}
 	f.Close()
+
+	ms.intCheckUrl = v.GetString("Core.Connection.Check.Destination")
+	ms.intHttpTimeout = v.GetDuration("Core.Connection.Check.Seconds")
 
 	return &ms, nil
 }
 
 func (ms *MineSession) Mine() error {
 	gpuConf := ms.AmdConf.GpuThreadsConf
+
 	if len(gpuConf) == 0 {
 		return fmt.Errorf("no threads found in amd.txt")
 	}
 
-	err := ms.ca.ResetCards(true)
+	err := ms.ca.ResetCards(ms.ca.resetOnStartUp)
 	if err != nil {
 		return fmt.Errorf("reset %v", err)
 	}
@@ -93,11 +100,17 @@ func (ms *MineSession) Mine() error {
 
 	err = ms.m.RunTools()
 	if err != nil {
-		fmt.Printf("%v", err)
+		log.Errorf("%v", err)
 	}
-	err = ms.MiningSession(1)
+	err = ms.MiningSession(0)
 	if err != nil {
-		debug("%v", err)
+		log.Errorf("mining session error %v", err)
+		if ms.resetEnabled {
+			err = RestartCommputer(ms.restartWait)
+			if err != nil {
+				log.Errorf("failed to restart computer %v", err)
+			}
+		}
 	}
 
 	return err
@@ -105,6 +118,9 @@ func (ms *MineSession) Mine() error {
 
 func checkInternet(url string, timeout time.Duration, maxFails int) error {
 	var failsThisCheck int
+	if timeout <= 2*time.Second {
+		timeout = 2 * time.Second
+	}
 
 	for {
 		client := http.Client{
@@ -121,7 +137,7 @@ func checkInternet(url string, timeout time.Duration, maxFails int) error {
 		}
 
 		failsThisCheck++
-		if failsThisCheck <= maxFails {
+		if failsThisCheck >= maxFails {
 			return fmt.Errorf("max fails exhausted")
 		}
 	}
@@ -131,7 +147,7 @@ func (ms *MineSession) MiningSession(maxFail int) (err error) {
 	var startFailures, failures, procMissing int
 
 	if maxFail == 0 {
-		maxFail = 65535
+		maxFail = 99965535
 	}
 
 	debug("new mining session")
@@ -148,7 +164,8 @@ func (ms *MineSession) MiningSession(maxFail int) (err error) {
 		}
 
 		go ms.m.ConsoleMetrics(ms.Met)
-		time.Sleep(2 * time.Second)
+		fmt.Println("Pausing for 5 seconds to allow Stak to start")
+		time.Sleep(5 * time.Second)
 
 		return ms.m.CheckStakProcess()
 	}
@@ -159,7 +176,7 @@ func (ms *MineSession) MiningSession(maxFail int) (err error) {
 		}
 		debug("start failures \t%v \tMonitoring failures \t%v", startFailures, failures)
 
-		if e := checkInternet("google.co.uk", 3*time.Second, 10); e != nil {
+		if e := checkInternet(ms.intCheckUrl, ms.intHttpTimeout, maxFail); e != nil {
 			return e
 		}
 
@@ -197,7 +214,7 @@ func (ms *MineSession) MiningSession(maxFail int) (err error) {
 			if startFailures >= ms.startFailures {
 				return fmt.Errorf("MiningSession startingHash %v", loopErr)
 			} else {
-				debug("start failure %v", loopErr)
+				log.Errorf("start failure %v", loopErr)
 				continue
 			}
 		} else {
@@ -207,7 +224,7 @@ func (ms *MineSession) MiningSession(maxFail int) (err error) {
 
 		// monitor running stak
 		if loopErr := ms.Api.currentHash(10, ms.refreshTime); loopErr != nil {
-			debug("restarting monitoring %v", loopErr)
+			log.Infof("restarting monitoring %v", loopErr)
 			failures++
 		}
 
@@ -215,7 +232,56 @@ func (ms *MineSession) MiningSession(maxFail int) (err error) {
 	return nil
 }
 
-func RestartCommputer() (err error) {
+func RestartCommputer(t int) (err error) {
 
-	return err
+	switch Os := runtime.GOOS; {
+	case Os == "windows":
+		cmd := exec.Command("shutdown", "/r", "/t", string(t))
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+
+		log.Error("restarting computer ")
+
+	case Os == "linux":
+		cmd := exec.Command("shutdown", "-r", "now")
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+
+	default:
+		return fmt.Errorf("%v not supported", Os)
+	}
+
+	return nil
+}
+
+func CancelRestart(t string) (err error) {
+
+	switch Os := runtime.GOOS; {
+	case Os == "windows":
+		cmd := exec.Command("shutdown", "/a")
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("restart computer ")
+
+	case Os == "linux":
+		cmd := exec.Command("shutdown", "-r", "now")
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("restart computer ")
+
+	default:
+		return fmt.Errorf("%v not supported", Os)
+	}
+
+	return nil
 }

@@ -218,8 +218,8 @@ func TestMiner_RunTools(t *testing.T) {
 		args    []string
 		wantErr bool
 	}{
-		{"", []string{"OverdriveNTool.exe -consoleonly -r1 -p1XMR"}, true},
-		// {"", []string{"OverdriveNTool.exe -consoleonly -r1 -p1XMR", "OverdriveNTool.exe -consoleonly -r1 -p1XMR", "OverdriveNTool.exe -consoleonly -r1 -p1XMR"}, false},
+		{"", []string{"OverdriveNTool.exe -consoleonly -r1 -p1XMR"}, false},
+		{"", []string{"OverdriveNTool.exe -consoleonly -r1 -p1XMR", "OverdriveNTool.exe -consoleonly -r1 -p1XMR", "OverdriveNTool.exe -consoleonly -r1 -p1XMR"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

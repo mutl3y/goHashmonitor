@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -39,18 +38,9 @@ func NewAmdConfig() AmdConf {
 	return AmdConf{}
 }
 
-// "gpu_threads_conf" :
-// [
-//     { "index" : 0, "Intensity" : 1000, "worksize" : 8, "affine_to_cpu" : false,
-//       "strided_index" : true, "mem_chunk" : 2, "unroll" : 8, "comp_mode" : true,
-//       "interleave" : 40
-//     },
-// ],
-
-//noinspection GoUnhandledErrorResult
-func (mc *AmdConf) gpuConfParse(r io.ReadCloser) error {
+func (mc *AmdConf) Read(r io.ReadCloser) error {
 	scanner := bufio.NewScanner(r)
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 	scanner.Split(bufio.ScanLines)
 	var js string
 	var removeComments = func(s string) string {
@@ -86,44 +76,6 @@ func (mc *AmdConf) gpuConfParse(r io.ReadCloser) error {
 	}
 
 	return nil
-}
-
-// amdIntTemplate Generates Config files with Intensity from min to max for cycling through
-func (mc *AmdConf) amdIntTemplate(interleave int, dir string) (str string, err error) {
-	if _, err = os.Stat(dir); os.IsNotExist(err) {
-		err = os.Mkdir(dir, 666)
-		if err != nil {
-			log.Fatalf("failed to create directory %v \t%v", dir, err)
-		}
-
-	}
-
-	for i := range mc.GpuThreadsConf {
-		mc.GpuThreadsConf[i].Interleave = interleave
-	}
-	jsTmp, err := json.Marshal(mc)
-	stakStyle := string(jsTmp)
-	if err != nil {
-		return
-	}
-
-	// remove curly's
-	stakStyle = stakStyle[:len(stakStyle)-1]
-	stakStyle = stakStyle[1:]
-	stakStyle += ","
-	// str	:= fmt.Sprintf("",mc.)
-	str = fmt.Sprintf("amd_%v.txt", interleave)
-
-	f, err := os.OpenFile(dir+str, os.O_WRONLY, 0666)
-	if err != nil {
-		return "", fmt.Errorf("amdIntTemplate_open %v", err)
-	}
-	defer f.Close()
-	if _, err = f.WriteString(stakStyle); err != nil {
-		return "", fmt.Errorf("amdIntTemplate_write %v", err)
-	}
-
-	return
 }
 
 func (mc *AmdConf) Write(rwc io.WriteCloser) (err error) {

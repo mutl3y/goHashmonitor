@@ -122,8 +122,8 @@ func _TestRunMiner(t *testing.T) {
 	}
 
 	amdConf := NewAmdConfig()
-	if err = amdConf.gpuConfParse(f); err != nil {
-		log.Errorf("AmdConf.gpuConfParse() error = %v", err)
+	if err = amdConf.Read(f); err != nil {
+		log.Errorf("AmdConf.Read() error = %v", err)
 	}
 	f.Close()
 	type args struct {

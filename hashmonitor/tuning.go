@@ -74,8 +74,8 @@ func TuningRun(c *viper.Viper, run IntensityRun) error {
 	}
 
 	amdConf := NewAmdConfig()
-	if err = amdConf.gpuConfParse(f); err != nil {
-		log.Errorf("AmdConf.gpuConfParse() error = %v", err)
+	if err = amdConf.Read(f); err != nil {
+		log.Errorf("AmdConf.Read() error = %v", err)
 	}
 	f.Close()
 
@@ -257,8 +257,8 @@ func InterleaveSession(c *viper.Viper, run InterleaveRun) error {
 	}
 
 	amdConf := NewAmdConfig()
-	if err = amdConf.gpuConfParse(f); err != nil {
-		log.Errorf("AmdConf.gpuConfParse() error = %v", err)
+	if err = amdConf.Read(f); err != nil {
+		log.Errorf("AmdConf.Read() error = %v", err)
 	}
 	f.Close()
 

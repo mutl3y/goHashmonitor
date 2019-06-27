@@ -1,6 +1,7 @@
 package hashmonitor
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -18,12 +19,26 @@ func Test_Mine(t *testing.T) {
 	tcfg.Set("influx.User", nil)
 	tcfg.Set("Influx.Pw", nil)
 	tcfg.Set("Influx.FlushSec", 1*time.Second)
+	tcfg.Set("Device.Reset.OnStartup", false)
+	tcfg.Set("Device.Reset.Enabled", true)
+	tcfg.Set("Core.Stak.Tools", []string{})
+	tcfg.Set("Core.DebugMessageInterval", 120*time.Second)
+	fname := tcfg.GetString("Core.Log.Configfile")
+
+	err = ConfigLogger(fname, false)
+	if err != nil {
+		fmt.Println("issue configuring logging", err)
+		return
+	}
+	Debug = true
+	d := NewDebugGrouper(tcfg)
+	defer d.Stop()
 
 	ms, err := NewMineSession(tcfg)
 	if err != nil {
 		t.Fatalf("failed to configure mining session")
 	}
-	ms.ca.resetEnabled = false
+
 	err = ms.ca.GetStatus()
 	if err != nil {
 		t.Fatalf("%+v\n", err)
@@ -174,6 +189,25 @@ func TestMineSession_CheckApi(t *testing.T) {
 					t.Errorf("CheckApi) error = %v, wantErr %v", err, tt.wantErr)
 				}
 
+			}
+		})
+	}
+}
+
+func TestMineSession_RestartCommputer(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{"", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			err := RestartCommputer(300)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MineSession.RestartCommputer() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
