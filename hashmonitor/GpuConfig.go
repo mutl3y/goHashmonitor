@@ -79,7 +79,7 @@ func (mc *AmdConf) Read(r io.ReadCloser) error {
 }
 
 func (mc *AmdConf) Write(rwc io.WriteCloser) (err error) {
-	jsTmp, err := json.Marshal(mc)
+	jsTmp, err := json.MarshalIndent(mc, "", "    ")
 	stakStyle := string(jsTmp)
 	if err != nil {
 		return
@@ -87,8 +87,8 @@ func (mc *AmdConf) Write(rwc io.WriteCloser) (err error) {
 
 	// remove curly's
 	stakStyle = stakStyle[:len(stakStyle)-1]
-	stakStyle = stakStyle[1:]
-	stakStyle += ","
+	stakStyle = stakStyle[1:] + ","
+	// stakStyle += ","
 
 	if _, err = rwc.Write([]byte(stakStyle)); err != nil {
 		log.Fatalf("failed to write amd.txt")

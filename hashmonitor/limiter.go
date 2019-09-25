@@ -11,7 +11,7 @@ type simpleRateLimit struct {
 }
 
 func limitClock(limit *simpleRateLimit) {
-	debug("Starting Rate Limiter")
+	debug("starting Rate Limiter")
 	tick := time.NewTicker(limit.rate)
 
 	for t := range tick.C {

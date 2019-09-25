@@ -98,14 +98,16 @@ func (api *apiService) Status() (ok bool) {
 
 func (api *apiService) CheckApi(checks int, sleepTime time.Duration) error {
 
+	fmt.Printf("checking api ")
 	for i := 0; i <= checks; i++ {
 		d := api.Status()
 		if d {
 			return nil
 		}
+		fmt.Printf(".")
 		time.Sleep(sleepTime)
 	}
-
+	fmt.Println()
 	return fmt.Errorf("stak has stopped responding")
 }
 
@@ -320,7 +322,7 @@ func (stats *stats) threadMapSlice() []map[string]interface{} {
 func (api *apiService) ConsoleDisplay() {
 	api.hrMon.mu.RLock()
 	defer api.hrMon.mu.RUnlock()
-	if api.hrMon.startingHash == 0 {
+	if api.hrMon.startingHash <= 1 {
 		return
 	}
 
@@ -422,7 +424,7 @@ var sem = make(chan bool, 1)
 func tmFlush() {
 	sem <- true
 	tm.Flush()
-	time.Sleep(50 * time.Millisecond)
+	// time.Sleep(50 * time.Millisecond) //todo do io need this
 	<-sem
 }
 

@@ -19,10 +19,13 @@ func Test_Mine(t *testing.T) {
 	tcfg.Set("influx.User", nil)
 	tcfg.Set("Influx.Pw", nil)
 	tcfg.Set("Influx.FlushSec", 1*time.Second)
-	tcfg.Set("Device.Reset.OnStartup", false)
+	tcfg.Set("Device.Reset.OnStartup", true)
 	tcfg.Set("Device.Reset.Enabled", true)
 	tcfg.Set("Core.Stak.Tools", []string{})
-	tcfg.Set("Core.DebugMessageInterval", 120*time.Second)
+	tcfg.Set("Core.DebugMessageInterval", 1*time.Second)
+	tcfg.Set("Core.Stak.MaxProcessStartTime", 5*time.Second)
+	tcfg.Set("Core.Stak.Stable_Time", 30*time.Second)
+
 	fname := tcfg.GetString("Core.Log.Configfile")
 
 	err = ConfigLogger(fname, false)
@@ -30,7 +33,7 @@ func Test_Mine(t *testing.T) {
 		fmt.Println("issue configuring logging", err)
 		return
 	}
-	Debug = true
+	// Debug = true
 	d := NewDebugGrouper(tcfg)
 	defer d.Stop()
 
@@ -38,7 +41,10 @@ func Test_Mine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to configure mining session")
 	}
-
+	err = ms.Config(tcfg)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	err = ms.ca.GetStatus()
 	if err != nil {
 		t.Fatalf("%+v\n", err)
@@ -50,7 +56,7 @@ func Test_Mine(t *testing.T) {
 
 	ms.Met.enabled = true
 	ms.Met.refresh = 10 * time.Second
-	ms.Met.db = "tuningRun"
+	ms.Met.db = "testMine"
 	if err = ms.Met.Config(tcfg); err != nil {
 		t.Logf("failed to config metrics client")
 	}
@@ -88,8 +94,14 @@ func TestCheckStak(t *testing.T) {
 	tcfg.Set("influx.User", nil)
 	tcfg.Set("Influx.Pw", nil)
 	tcfg.Set("Influx.FlushSec", 1*time.Second)
+	tcfg.Set("Core.Stak.MaxProcessStartTime", 5*time.Second)
 
 	ms, err := NewMineSession(tcfg)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	err = ms.Config(tcfg)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -167,6 +179,11 @@ func TestMineSession_CheckApi(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
+	err = ms.Config(tcfg)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
 	ms.Api.Monitor(ms.Met)
 	defer ms.Api.StopMonitor(ms.Met)
 	tests := []struct {
@@ -176,7 +193,7 @@ func TestMineSession_CheckApi(t *testing.T) {
 		errString string
 	}{
 		{"int 100 fail ", 0, true, "stak has stopped responding"},
-		{"int 100", 33433, true, "process does not exist"},
+		{"int 100", 33433, true, "stak has stopped responding"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -185,8 +202,9 @@ func TestMineSession_CheckApi(t *testing.T) {
 			ms.m.Process.Pid = tt.pid
 			// fmt.Printf("%+v\n", ms.m.Process)
 			if err := ms.Api.CheckApi(4, time.Millisecond); err != nil {
-				if (tt.wantErr == true) && (err.Error() != tt.errString) {
-					t.Errorf("CheckApi) error = %v, wantErr %v", err, tt.wantErr)
+				if tt.wantErr && (err.Error() != tt.errString) {
+					t.Errorf("CheckApi) error = %v, wantErr %v", err.Error(), tt.wantErr)
+					fmt.Println(err.Error(), tt.errString, err.Error() == tt.errString)
 				}
 
 			}

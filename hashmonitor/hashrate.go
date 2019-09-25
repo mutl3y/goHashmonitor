@@ -43,19 +43,18 @@ func NewhRMonStruct() hrMon {
 
 func (api *apiService) minHash(min int) error {
 	a := api.StatsCopy()
-	if len(a.Total) == 0 {
-		api.Stats.data.Total = []float64{0.0}
-		return nil
-	}
-	// fmt.Printf("minhash %T %p %v\n", a.Total[0], &a.Total, a.Total)
-	// fmt.Printf("statscopy %T %p %v\n", stat.Total, &stat.Total, stat.Total)
+	// if len(a.Total) == 0 {
+	// 	api.Stats.data.Total = []float64{0.0}
+	// 	return fmt.Errorf("no hashrate")
+	// }
 
-	for i := 0; i <= 5; i++ {
+	for i := 0; i <= 10; i++ {
 		if a.Total[0] >= float64(min) {
 			return nil
 		}
 		time.Sleep(time.Second)
 	}
+	debug("minHashRate fault \nThreads\t%v\nTotal\t%v", a.Threads, a.Total)
 	return fmt.Errorf("minimum hashrate not Met want > %v got %v", float64(min), a.Total[0])
 }
 
@@ -67,7 +66,6 @@ func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck b
 	// }
 	s := api.StatsCopy()
 	if (float64(s.Uptime) >= stableTime.Seconds()) && upCheck {
-		fmt.Println("Stak already up")
 		if api.hrMon.min() == 0 {
 			api.Stats.mu.Lock()
 			api.hrMon.minhash = int(api.Stats.data.Total[0]) - api.hrMon.drop
@@ -78,12 +76,13 @@ func (api *apiService) startingHash(min int, stableTime time.Duration, upCheck b
 	}
 
 	var startStakSeconds int
+	debug("waiting for stak to connect")
 	for {
 		s := api.StatsCopy()
 		if s.connection.Uptime >= 1 {
 			break
 		}
-		debug("waiting for stak to connect")
+
 		time.Sleep(time.Second)
 		startStakSeconds++
 		if startStakSeconds >= 10 {
@@ -144,13 +143,14 @@ func (api *apiService) currentHash(maxErrors int, refresh time.Duration) error {
 		// 	// todo remove
 		// 	return nil
 		case <-ticker.C:
-			if err := api.minHash(min); err != nil {
+			err := api.minHash(min)
+			if err != nil {
 				if err.Error() == "skip" {
 					continue
 				}
 				failures++
 				if failures >= maxErrors {
-					return fmt.Errorf("%v", err)
+					return fmt.Errorf("restart: %v", err)
 				}
 				debug("hashrate error ")
 				continue

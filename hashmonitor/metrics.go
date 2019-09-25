@@ -141,6 +141,7 @@ func (m *metrics) Write(measurment string, tags map[string]string, fields map[st
 	if m.pointsQueue != nil {
 		m.pointsQueue <- p
 	}
+	// debug("%+v", p)
 	return nil
 }
 
@@ -151,7 +152,7 @@ func (m *metrics) checkDB() error {
 		return nil
 	}
 
-	debug("Checking Influx DB")
+	debug("checking Influx DB")
 	//
 	// if false {
 	// 	query := inf.Query{
@@ -211,7 +212,7 @@ func (m *metrics) backGroundWriter() {
 		log.Fatalf("check db failed %v", err)
 	}
 	var nextFlush time.Time
-	debug("Starting Influx Writer")
+	debug("starting Influx Writer")
 	type queue struct {
 		points []inf.Point
 		sync.Mutex
@@ -227,7 +228,9 @@ func (m *metrics) backGroundWriter() {
 		length := len(q.points)
 
 		if length > 0 {
-			debug("influx queue depth %v", length)
+			if Debug {
+				debug("influx queue depth %v", length)
+			}
 			p := q.points
 			q.points = make([]inf.Point, 0, 1000)
 

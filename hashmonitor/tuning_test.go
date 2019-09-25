@@ -44,7 +44,7 @@ func _Test_TuningRun(t *testing.T) {
 	}
 	tcfg.Set("Influx.Enabled", true)
 	tcfg.Set("Influx.IP", "192.168.0.29")
-	tcfg.Set("Influx.DB", "tryme")
+	tcfg.Set("Influx.DB", "testMine")
 	tcfg.Set("Influx.Port", 8086)
 	tcfg.Set("influx.User", nil)
 	tcfg.Set("Influx.Pw", nil)
@@ -140,7 +140,7 @@ func _TestRunMiner(t *testing.T) {
 			"xmr-stak/amd.txt",
 			api, cards, met, amdConf,
 			1000, 18, 20, 0,
-			10 * time.Second, 3 * time.Second}, tcfg}, false},
+			10 * time.Second, 3 * time.Second, 5 * time.Second}, tcfg}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -197,9 +197,9 @@ func _TestInterleaveSession(t *testing.T) {
 	}{
 
 		{"reset Disabled, 10 second runtime", InterleaveRun{
-			Interleave: IntRunArgs{Start: 20, Stop: 40, Inc: 5},
-			Runtime:    10 * time.Second,
-			ResetCards: false},
+			Interleave: IntRunArgs{Start: 10, Stop: 40, Inc: 2},
+			Runtime:    120 * time.Second,
+			ResetCards: true},
 		},
 	}
 	tcfg, err := Config()
@@ -213,7 +213,7 @@ func _TestInterleaveSession(t *testing.T) {
 	tcfg.Set("influx.User", nil)
 	tcfg.Set("Influx.Pw", nil)
 	tcfg.Set("Influx.FlushSec", 1*time.Second)
-
+	Debug = true
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 

@@ -90,7 +90,7 @@ func (dm *DebugGrouper) backGroundWriter() {
 				s := fmt.Sprintf("%v: %v \n", hostname, currentTime)
 				for _, v := range p {
 					if s != "" {
-						s += v
+						s += "\x1b[0;35m" + v
 					}
 				}
 				log.Debug(s)

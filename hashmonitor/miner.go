@@ -176,7 +176,7 @@ func argStringToSlice(ss []string) []string {
 }
 
 // StartMining a configured miner
-func (ms *miner) StartMining() error {
+func (ms *miner) StartMining(t time.Duration) error {
 	OSSettings()
 
 	cmd := exec.Command(ms.config.exe, ms.config.args...)
@@ -196,7 +196,36 @@ func (ms *miner) StartMining() error {
 	ms.StdOutPipe = &stdPipe
 	log.Infof("Starting STAK process ID %v", ms.Process.Pid)
 
-	return err
+	endTime := time.Now().Add(t)
+
+	for {
+		select {
+		case <-ms.CheckStakProcessChan():
+			return nil
+		case <-afterTime(endTime):
+			return fmt.Errorf("timed out starting process %v", ms.config.exe)
+		}
+	}
+
+}
+
+func (m *miner) CheckStakProcessChan() <-chan time.Time {
+	var C chan time.Time
+	if m.Process == nil {
+		return C
+	}
+
+	pid := int32(m.Process.Pid)
+	procExists, err := pr.PidExists(pid)
+	if err != nil {
+		return C
+	}
+
+	if procExists {
+		return time.After(time.Duration(0))
+	}
+
+	return C
 }
 
 func (ms *miner) RunTools() error {
@@ -327,13 +356,14 @@ func (ms *miner) ConsoleMetrics(met *metrics) {
 
 	}
 
+	debug("exiting console metrics")
 	return
 }
 
 func conParse(b []byte) (m map[string]interface{}, err error) {
 	m = map[string]interface{}{}
 	s := string(b)
-	if DebugRaw {
+	if Debug {
 		debug("%v", s)
 	}
 

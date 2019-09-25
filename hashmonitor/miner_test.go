@@ -70,7 +70,7 @@ func TestMiner_StartMining_StopMining(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed configuring miner: %v", err)
 	}
-	err = m.StartMining()
+	err = m.StartMining(10 * time.Second)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -112,7 +112,7 @@ func TestMiner_StartMining_StopMining_Args(t *testing.T) {
 
 			DebugRaw = true
 
-			err = m.StartMining()
+			err = m.StartMining(10 * time.Second)
 			if err != nil {
 				t.Fatalf("%v", err)
 			}

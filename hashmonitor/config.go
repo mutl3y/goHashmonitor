@@ -71,18 +71,20 @@ func DefaultConfig() *viper.Viper {
 	// c.SetDefault("Core.Log.Rotate", true)
 	// c.SetDefault("Core.Log.Rotate_Hours", 24)
 	c.SetDefault("Core.Reboot.Enabled", false)
+
 	c.SetDefault("Core.Reboot.Timeout_Seconds", 15)
 
 	c.SetDefault("Core.Stak.Args", []string{"--noNVIDIA", "--noCPU"})
 	c.SetDefault("Core.Stak.Dir", root+"xmr-stak")
 	c.SetDefault("Core.Stak.Exe", "./xmr-stak.exe")
 	c.SetDefault("Core.Stak.Ip", "127.0.0.1")
-
+	c.SetDefault("Core.Stak.MaxProcessStartTime", 5*time.Second)
 	c.SetDefault("Core.Stak.Refresh_Time", time.Millisecond*500)
 	c.SetDefault("Core.Stak.Timeout", 2)
 	c.SetDefault("Core.Stak.Start_Attempts", 3)
+	c.SetDefault("Core.Stak.StartFailure.Reboot", false)
 	c.SetDefault("Core.Stak.Stable_Time", 30*time.Second)
-	c.SetDefault("Core.Stak.Seconds_Before_Rate_check", 20)
+	c.SetDefault("Core.Stak.Seconds_Before_Rate_check", 22)
 	c.SetDefault("Core.Stak.Tools", []string{
 		"OverdriveNTool.exe -consoleonly -r1 -p1XMR",
 		"OverdriveNTool.exe -consoleonly -r2 -p2XMR",

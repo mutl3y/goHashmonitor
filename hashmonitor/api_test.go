@@ -76,7 +76,6 @@ func Test_apiService_StopMonitor(t *testing.T) {
 }
 
 func Test_apiService_ShowMonitor(t *testing.T) {
-	t.Logf("Number of running go routines %v: %v ", "before", runtime.NumGoroutine())
 
 	c, err := Config()
 	if err != nil {
@@ -88,7 +87,7 @@ func Test_apiService_ShowMonitor(t *testing.T) {
 
 	met := &metrics{}
 	ss.Monitor(met)
-	time.AfterFunc(10*time.Second, func() {
+	time.AfterFunc(4*time.Second, func() {
 		ss.StopMonitor(met)
 	})
 
@@ -100,15 +99,16 @@ func Test_apiService_ShowMonitor(t *testing.T) {
 		{"should work", ss, false},
 		// 		{"should break", &apiService{}, true},
 	}
+	t.Logf("Number of running go routines %v: %v ", "before", runtime.NumGoroutine())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			go tt.api.ShowMonitor()
+			tt.api.ShowMonitor()
 
 		})
 
 	}
-	time.Sleep(5 * time.Second)
 	t.Logf("Number of running go routines %v: %v ", "after", runtime.NumGoroutine())
 
 }

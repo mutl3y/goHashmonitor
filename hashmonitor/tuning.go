@@ -109,13 +109,14 @@ func TuningRun(c *viper.Viper, run IntensityRun) error {
 			amdConf.AutoTune = run.AutoTune
 
 			ms := tuneSession{
-				confFile:  file,
-				api:       api,
-				ca:        cards,
-				met:       met,
-				amdConf:   amdConf,
-				runTime:   run.Runtime,
-				afterLock: run.AfterAllLock,
+				confFile:      file,
+				api:           api,
+				ca:            cards,
+				met:           met,
+				amdConf:       amdConf,
+				runTime:       run.Runtime,
+				afterLock:     run.AfterAllLock,
+				prMaxStartDur: c.GetDuration("Core.Stak.MaxProcessStartTime"),
 			}
 			// debug("intensity  %+v"+
 			// 	" worksize %v"+
@@ -145,6 +146,7 @@ type tuneSession struct {
 	amdConf                                   AmdConf
 	intensity, workSize, interleave, autoTune int
 	runTime, afterLock                        time.Duration
+	prMaxStartDur                             time.Duration
 }
 
 func RunMiner(s tuneSession, c *viper.Viper) error {
@@ -196,7 +198,7 @@ func RunMiner(s tuneSession, c *viper.Viper) error {
 	}
 	threadCount := len(s.amdConf.GpuThreadsConf)
 
-	err = m.StartMining()
+	err = m.StartMining(s.prMaxStartDur)
 	if err != nil {
 		return fmt.Errorf("failed to start mining %v", err)
 	}
@@ -215,10 +217,10 @@ func RunMiner(s tuneSession, c *viper.Viper) error {
 }
 
 func InterleaveSession(c *viper.Viper, run InterleaveRun) error {
-	switch {
-	case run.Interleave.Start == 0 || run.Interleave.Stop == 0 || run.Interleave.Inc == 0:
-		return fmt.Errorf("must provide valid intensity settings: start, stop and increment, %v %v %v", run.Interleave.Start, run.Interleave.Stop, run.Interleave.Inc)
-	}
+	// switch {
+	// case run.Interleave.Start == 0 || run.Interleave.Stop == 0 || run.Interleave.Inc == 0:
+	// 	return fmt.Errorf("must provide valid intensity settings: start, stop and increment, %v %v %v", run.Interleave.Start, run.Interleave.Stop, run.Interleave.Inc)
+	// }
 
 	cards := NewCardData(c)
 	cards.resetEnabled = run.ResetCards
@@ -244,6 +246,7 @@ func InterleaveSession(c *viper.Viper, run InterleaveRun) error {
 	go met.backGroundWriter()
 
 	go api.Monitor(met)
+	go api.ShowMonitor()
 
 	dir := c.GetString("Core.Stak.Dir")
 	if dir == "" {
@@ -286,6 +289,7 @@ func InterleaveSession(c *viper.Viper, run InterleaveRun) error {
 			runTime:   run.Runtime,
 			afterLock: run.AfterAllLock,
 		}
+		fmt.Printf("interleave %v\n", interleave)
 		err = RunMiner(ms, c)
 		if err != nil {
 			return fmt.Errorf("error mining %v", err)
